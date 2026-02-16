@@ -18,6 +18,7 @@ const features = [
 export default function Index() {
   const featured = products.filter((p) => p.featured);
   const [email, setEmail] = useState("");
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,13 +41,17 @@ export default function Index() {
     <div>
       {/* Hero */}
       <section className="relative h-[90vh] min-h-[550px] flex items-center overflow-hidden">
+        {!imageLoaded && (
+          <div className="absolute inset-0 bg-charcoal animate-pulse" />
+        )}
         <motion.img
           src={heroBanner}
           alt="عباءات الصلاة"
           className="absolute inset-0 w-full h-full object-cover"
-          initial={{ scale: 1.1 }}
-          animate={{ scale: 1 }}
+          initial={{ scale: 1.1, opacity: 0 }}
+          animate={{ scale: imageLoaded ? 1 : 1.1, opacity: imageLoaded ? 1 : 0 }}
           transition={{ duration: 1.5, ease: "easeOut" }}
+          onLoad={() => setImageLoaded(true)}
         />
         <div className="absolute inset-0 hero-overlay" />
 
