@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 
 const features = [
   { icon: Star, title: "جودة فائقة", desc: "أقمشة مختارة بعناية من أجود الخامات" },
-  { icon: Truck, title: "توصيل سريع", desc: "شحن مجاني لجميع أنحاء المملكة" },
+  { icon: Truck, title: "توصيل سريع", desc: "شحن مجاني لجميع ولايات الوطن" },
   { icon: Shield, title: "دفع عند الاستلام", desc: "تسوق بثقة وادفع عند وصول طلبك" },
   { icon: Sparkles, title: "تصاميم حصرية", desc: "تشكيلات فريدة لا تجدها في مكان آخر" },
 ];

@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { CartProvider } from "@/lib/cart";
 import { OrdersProvider } from "@/lib/orders";
 import { ProductsProvider } from "@/lib/products";
+import { AuthProvider } from "@/lib/auth";
 import Navbar from "@/components/Navbar";
 import ScrollToTop from "@/components/ScrollToTop";
 import Footer from "@/components/Footer";
@@ -60,19 +61,21 @@ function AppContent() {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <ProductsProvider>
-        <OrdersProvider>
-          <CartProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <AppContent />
-            </BrowserRouter>
-          </CartProvider>
-        </OrdersProvider>
-      </ProductsProvider>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <ProductsProvider>
+          <OrdersProvider>
+            <CartProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <AppContent />
+              </BrowserRouter>
+            </CartProvider>
+          </OrdersProvider>
+        </ProductsProvider>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

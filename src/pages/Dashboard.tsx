@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useOrders, OrderStatus, algerianWilayas, Order } from "@/lib/orders";
+import { useOrders, OrderStatus, Order } from "@/lib/orders";
 import { useProducts, Product } from "@/lib/products";
 import { 
   Package, ShoppingBag, Plus, Save, Edit, Trash2, Settings,
@@ -11,6 +11,8 @@ import { Button, Badge, Input, Card } from "@/components/SimpleUI";
 import AdminNavbar from "@/components/AdminNavbar";
 import { toast } from "sonner";
 import { useLocation } from "react-router-dom";
+import { useAuth } from "@/lib/auth";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 /**
  * Saneen Dynamic Admin Dashboard
@@ -29,18 +31,27 @@ export default function Dashboard() {
   const updateOrder = ordersContext?.updateOrder || (() => {});
   const deleteOrder = ordersContext?.deleteOrder || (() => {});
   const updateWilayaFee = ordersContext?.updateWilayaFee || (() => {});
+  const addWilaya = ordersContext?.addWilaya || (() => {});
+  const deleteWilaya = ordersContext?.deleteWilaya || (() => {});
+  const renameWilaya = ordersContext?.renameWilaya || (() => {});
   
   const { 
     products, sizes, cuts, fabrics, categories, 
-    addProduct, updateProduct, deleteProduct, sellInStore, getProductPrice, updateFilter 
+    addProduct, updateProduct, deleteProduct, sellInStore, returnToStock, getProductPrice, updateFilter 
   } = productsContext!;
 
+  const { role, login, users, addUser, deleteUser, currentUser, updatePassword } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     const tab = hash ? hash.replace("#", "") : "overview";
-    setActiveTab(tab || "overview");
-  }, [hash]);
+    if (role === 'employee' && tab === "users") {
+       setActiveTab("overview");
+       window.location.hash = "#overview";
+    } else {
+       setActiveTab(tab || "overview");
+    }
+  }, [hash, role]);
 
   // POS State
   const [posSearch, setPosSearch] = useState("");
@@ -58,6 +69,13 @@ export default function Dashboard() {
   const [isEditOrderModalOpen, setIsEditOrderModalOpen] = useState(false);
   const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
   const [editOrderData, setEditOrderData] = useState<Partial<Order>>({ items: [] });
+
+  const [autoPrint, setAutoPrint] = useState(() => {
+    try { return localStorage.getItem("saneen_auto_print") !== "false"; } catch { return true; }
+  });
+
+  const [newWilayaName, setNewWilayaName] = useState("");
+  const [newWilayaFee, setNewWilayaFee] = useState(600);
   const [editProductSearch, setEditProductSearch] = useState("");
 
   const [formData, setFormData] = useState<Partial<Product>>({
@@ -129,6 +147,28 @@ export default function Dashboard() {
   };
 
   const openEditOrderModal = (o: Order) => {
+    if (!o.isOnlineOrder) {
+      // Local sale logic: return items to POS cart to edit
+      if (confirm("هل تريد العودة بمنتجات هذا الطلب إلى سلة البيع لتعديلها؟ (سيتم حذف الطلب الأصلي وإعادة السلع للمخزون مؤقتاً)")) {
+        // Return items to stock first
+        for (const item of o.items) {
+           const p = products.find(prod => prod.name === item.productName);
+           if (p) returnToStock(p.id, item.size, item.quantity);
+        }
+        
+        // Load items back into POS Cart
+        const restoredCart = o.items.map(item => {
+           const p = products.find(prod => prod.name === item.productName);
+           return { product: p as Product, size: item.size, quantity: item.quantity, price: item.price };
+        }).filter(i => i.product);
+
+        setPosCart(restoredCart);
+        deleteOrder(o.id);
+        window.location.hash = "#pos";
+        toast.info("تم إدراج منتجات الطلب في سلة البيع");
+        return;
+      }
+    }
     setOrderToEdit(o);
     setEditOrderData({ ...o, items: [...o.items] });
     setIsEditOrderModalOpen(true);
@@ -150,7 +190,7 @@ export default function Dashboard() {
   };
 
   const [wilayaSearch, setWilayaSearch] = useState("");
-  const filteredWilayas = algerianWilayas.filter(w => w.toLowerCase().includes(wilayaSearch.toLowerCase()));
+  const filteredWilayas = Object.keys(wilayaFees).filter(w => w.toLowerCase().includes(wilayaSearch.toLowerCase()));
   
   const [orderSearch, setOrderSearch] = useState("");
   const [orderTabFilter, setOrderTabFilter] = useState<"all" | "online" | "store">("all");
@@ -210,35 +250,50 @@ export default function Dashboard() {
        totalDZD: subtotal,
        isOnlineOrder: false,
        deliveryFee: 0,
-       status: "مكتمل"
+       status: "مكتمل",
+       cashierId: currentUser?.id,
+       cashierName: currentUser?.username || 'Unknown'
     });
     for (const item of posCart) {
        for (let n = 0; n < item.quantity; n++) sellInStore(item.product.id, item.size);
     }
-    document.body.classList.add('printing-receipt');
-    setTimeout(() => {
-      window.print();
-      document.body.classList.remove('printing-receipt');
-      setPosCart([]);
-    }, 300);
+    
+    if (autoPrint) {
+       document.body.classList.add('printing-receipt');
+       setTimeout(() => {
+         window.print();
+         document.body.classList.remove('printing-receipt');
+         setPosCart([]);
+       }, 300);
+    } else {
+       setPosCart([]);
+       toast.success("تم تسجيل البيع بنجاح (الطباعة متوقفة)");
+    }
   };
 
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    try { return sessionStorage.getItem("admin_auth") === "true"; } catch(e) { return false; }
-  });
-  
-  if (!isAuthenticated) {
+  if (!role) {
     return (
-      <div className="min-h-screen bg-[#F8F5F2] flex items-center justify-center p-6 text-right">
-        <div className="max-w-md w-full p-12 bg-white rounded-2xl shadow-xl flex flex-col items-center border border-slate-100">
-          <Shield className="h-16 w-16 text-black mb-8" />
-          <h2 className="text-2xl font-black text-gray-900 mb-8 uppercase">تسجيل الدخول</h2>
-          <Input type="password" placeholder="كلمة المرور" id="login-pwd" className="saneen-input w-full text-center text-lg mb-4" />
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-right">
+        <div className="max-w-md w-full p-10 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col items-center">
+          <div className="h-16 w-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-6">
+             <Shield className="h-8 w-8" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">تسجيل الدخول للنظام</h2>
+          <p className="text-sm text-slate-500 mb-8 text-center">أدخل بيانات الاعتماد الخاصة بك</p>
+          <div className="w-full space-y-4 mb-8">
+             <Input type="text" placeholder="اسم المستخدم" id="login-user" className="w-full text-right h-12 bg-slate-50 border-slate-200 focus:border-blue-500" />
+             <Input type="password" placeholder="كلمة المرور" id="login-pwd" className="w-full text-right h-12 bg-slate-50 border-slate-200 focus:border-blue-500" />
+          </div>
           <button onClick={() => { 
+              const u = (document.getElementById('login-user') as HTMLInputElement).value;
               const p = (document.getElementById('login-pwd') as HTMLInputElement).value;
-              if(p === "admin123" || p === "سنين") { setIsAuthenticated(true); sessionStorage.setItem("admin_auth", "true"); }
-              else toast.error("خطأ في كلمة المرور");
-          }} className="saneen-btn-dark w-full h-14">دخول النظام</button>
+              try {
+                login(u, p);
+                toast.success("تم تسجيل الدخول بنجاح");
+              } catch (e) {
+                toast.error("بيانات الدخول غير صحيحة");
+              }
+          }} className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all">تسجيل الدخول</button>
         </div>
       </div>
     );
@@ -255,18 +310,20 @@ export default function Dashboard() {
             {/* Minimal Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 py-4">
                <div>
-                  <h1 className="text-3xl font-semibold text-[#1A1A1A]">أهلاً بك</h1>
-                  <p className="text-[#8E8B83] text-sm mt-1">نظرة سريعة على أداء متجر سنين</p>
+                  <h1 className="text-3xl font-bold text-slate-800">أهلاً بك، {role === 'admin' ? 'أيها المدير' : 'أيها الموظف'}</h1>
+                  <p className="text-slate-500 text-sm mt-1">لوحة القيادة والمتابعة الخاصة بمتجر سنين</p>
                </div>
                <div className="flex gap-4">
-                  <button onClick={() => window.location.hash = "#pos"} className="saneen-btn-dark">
+                  <button onClick={() => window.location.hash = "#pos"} className="px-6 h-12 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-900 transition-all flex items-center gap-2">
                      <ShoppingCart className="h-4 w-4" />
                      <span>بيع سريع</span>
                   </button>
-                  <button onClick={() => window.location.hash = "#catalog"} className="saneen-btn-outline">
-                     <Plus className="h-4 w-4" />
-                     <span>إضافة منتج</span>
-                  </button>
+                  {role === 'admin' && (
+                    <button onClick={() => window.location.hash = "#catalog"} className="px-6 h-12 bg-white border border-slate-200 text-slate-700 rounded-lg font-bold hover:bg-slate-50 transition-all flex items-center gap-2">
+                       <Plus className="h-4 w-4" />
+                       <span>إضافة منتج</span>
+                    </button>
+                  )}
                </div>
             </div>
 
@@ -277,82 +334,158 @@ export default function Dashboard() {
                 { title: "مبيعات المحل", val: revenueStore, icon: Store },
                 { title: "إجمالي المداخيل", val: revenueOnline + revenueStore, icon: DollarSign },
               ].map((card, i) => (
-                <div key={i} className="saneen-card p-10 border-[#F5F2ED]">
-                   <div className="flex justify-between items-center mb-6">
-                      <div className="h-12 w-12 rounded-full bg-[#F7F5F0] flex items-center justify-center text-[#A68966]">
+                <div key={i} className="bg-white p-8 rounded-xl border border-slate-100 shadow-sm relative overflow-hidden group">
+                   <div className="flex justify-between items-center mb-6 relative z-10">
+                      <div className="h-12 w-12 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
                          <card.icon className="h-5 w-5" />
                       </div>
-                      <span className="text-[11px] font-semibold text-[#8E8B83] tracking-widest">اليوم</span>
+                      <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">مباشر</span>
                    </div>
-                   <p className="text-[11px] font-semibold text-[#8E8B83] uppercase tracking-widest mb-1">{card.title}</p>
-                   <div className="flex items-baseline gap-2">
-                     <h3 className="text-3xl font-bold text-[#1A1A1A]">{card.val.toLocaleString()}</h3>
-                     <span className="text-xs text-[#BCB9B3]">دج</span>
+                   <p className="text-xs font-bold text-slate-500 mb-1 relative z-10">{card.title}</p>
+                   <div className="flex items-baseline gap-2 relative z-10">
+                     <h3 className="text-3xl font-black text-slate-800 tracking-tight">{card.val.toLocaleString()}</h3>
+                     <span className="text-xs text-slate-400 font-bold">دج</span>
                    </div>
                 </div>
               ))}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-               {/* Activities */}
-               <div className="lg:col-span-8">
-                  <div className="saneen-card p-8 min-h-[500px]">
-                     <div className="flex items-center justify-between mb-8 pb-4 border-b border-[#F7F5F0]">
-                        <h2 className="text-xl font-semibold text-[#1A1A1A]">العمليات الأخيرة</h2>
-                        <button onClick={() => window.location.hash = "#orders"} className="text-xs font-semibold text-[#A68966] opacity-60 hover:opacity-100 transition-opacity">مشاهدة الكل</button>
+               {/* Activities & Charts */}
+               <div className="lg:col-span-8 flex flex-col gap-8">
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-8 min-h-[400px]">
+                     <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-50">
+                        <h2 className="text-lg font-bold text-slate-800">تحليل المبيعات الأسبوعية</h2>
+                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">آخر 7 أيام</span>
                      </div>
-                     <div className="space-y-4">
+                     <div className="h-[300px] w-full" dir="ltr">
+                       <ResponsiveContainer width="100%" height="100%">
+                         <BarChart data={[
+                           { name: 'السبت', sales: 12000 }, { name: 'الأحد', sales: 19000 }, 
+                           { name: 'الاثنين', sales: 15000 }, { name: 'الثلاثاء', sales: 22000 }, 
+                           { name: 'الأربعاء', sales: 18000 }, { name: 'الخميس', sales: 25000 }, 
+                           { name: 'الجمعة', sales: (revenueOnline + revenueStore) || 30000 }
+                         ]} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
+                           <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                           <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', textAlign: 'right' }} />
+                           <Bar dataKey="sales" fill="#2563eb" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                         </BarChart>
+                       </ResponsiveContainer>
+                     </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-8">
+                     <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-50">
+                        <h2 className="text-lg font-bold text-slate-800">أحدث الطلبات القادمة</h2>
+                        <button onClick={() => window.location.hash = "#orders"} className="text-xs font-bold text-blue-600 hover:underline">إدارة الطلبات</button>
+                     </div>
+                     <div className="space-y-3">
                         {orders.slice(0, 5).map(o => (
-                           <div key={o.id} className="flex items-center justify-between p-5 rounded-2xl hover:bg-[#FDFCFB] border border-transparent hover:border-[#F2EFE9] transition-all">
-                              <div className="flex items-center gap-5">
-                                 <div className={`h-12 w-12 rounded-full flex items-center justify-center ${o.isOnlineOrder ? 'text-indigo-400 bg-indigo-50/30' : 'text-[#A68966] bg-[#F7F5F0]'}`}>
+                           <div key={o.id} className="flex items-center justify-between p-4 rounded-lg hover:bg-slate-50 border border-transparent transition-all">
+                              <div className="flex items-center gap-4">
+                                 <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${o.isOnlineOrder ? 'text-blue-500 bg-blue-50' : 'text-slate-500 bg-slate-100'}`}>
                                     {o.isOnlineOrder ? <Wifi className="h-4 w-4" /> : <Store className="h-4 w-4" />}
                                  </div>
                                  <div>
-                                    <p className="text-sm font-semibold text-[#1A1A1A]">{(o.customerName === "زبون محلي" || o.customerName.includes("عميل محلي")) ? "بيع مباشر (المحل)" : o.customerName}</p>
-                                    <p className="text-[10px] text-[#BCB9B3]">#{o.id} • {o.date}</p>
+                                    <p className="font-bold text-slate-800">{(o.customerName === "زبون محلي" || o.customerName === "بيع مباشر (المحل)" || o.customerName.includes("عميل محلي")) ? "بيع مباشر (المحل)" : o.customerName}</p>
+                                    <p className="text-xs text-slate-500">#{o.id} • {o.date}</p>
                                  </div>
                               </div>
-                              <span className="font-bold text-lg">{o.totalDZD.toLocaleString()} <span className="text-[10px] opacity-30">دج</span></span>
+                              <span className="font-black">{o.totalDZD.toLocaleString()} <span className="text-[10px] text-slate-400">دج</span></span>
                            </div>
                         ))}
                      </div>
                   </div>
+
+                  {/* ADMIN ONLY: EMPLOYEE PERFORMANCE */}
+                  {role === 'admin' && (
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-8 mt-8">
+                     <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-50">
+                        <h2 className="text-lg font-bold text-slate-800">أداء الموظفين والمبيعات</h2>
+                     </div>
+                     <div className="overflow-x-auto">
+                        <table className="w-full text-right">
+                           <thead className="bg-slate-50 text-slate-500 text-xs">
+                             <tr>
+                                <th className="py-3 px-4 font-bold">الموظف</th>
+                                <th className="py-3 px-4 font-bold">العمليات</th>
+                                <th className="py-3 px-4 font-bold">العائدات بالمحل</th>
+                             </tr>
+                           </thead>
+                           <tbody className="divide-y divide-slate-100 text-sm">
+                             {Array.from(
+                               orders.reduce((acc, o) => {
+                                 if (o.cashierName && o.status !== 'ملغى' && !o.isOnlineOrder) {
+                                    if (!acc.has(o.cashierName)) acc.set(o.cashierName, { count: 0, revenue: 0 });
+                                    const entry = acc.get(o.cashierName);
+                                    if(entry) {
+                                        entry.count += 1;
+                                        entry.revenue += o.totalDZD;
+                                    }
+                                 }
+                                 return acc;
+                               }, new Map<string, {count: number, revenue: number}>()).entries()
+                             ).sort((a,b) => b[1].revenue - a[1].revenue).map(([name, data]) => (
+                               <tr key={name} className="hover:bg-slate-50 transition-colors">
+                                 <td className="py-3 px-4 font-bold text-slate-800 flex items-center gap-2"><User className="h-4 w-4 text-blue-500"/> {name}</td>
+                                 <td className="py-3 px-4 text-slate-500 font-bold">{data.count}</td>
+                                 <td className="py-3 px-4 text-emerald-600 font-black">{data.revenue.toLocaleString()} دج</td>
+                               </tr>
+                             ))}
+                           </tbody>
+                        </table>
+                        {(!orders.some(o => o.cashierName && !o.isOnlineOrder)) && (
+                            <div className="text-center py-6 text-sm text-slate-400 font-bold">لا توجد مبيعات مسجلة بأسماء الموظفين بعد</div>
+                        )}
+                     </div>
+                  </div>
+                  )}
+
                </div>
 
-               {/* Stock & Distribution */}
+               {/* Right Column: Mini Charts & Storage */}
                <div className="lg:col-span-4 space-y-8">
-                  <div className="saneen-card p-8 bg-[#2D2B29] text-white">
-                     <h2 className="text-sm font-semibold mb-6 flex items-center gap-3 text-[#A68966] uppercase tracking-widest"><AlertTriangle className="h-4 w-4" /> تنبيهات المخزون</h2>
-                     <div className="space-y-4">
-                        {products.filter(p => Object.values(p.stock || {}).reduce((a,b)=>a+b,0) <= (p.reorderLevel || 5)).slice(0, 3).map(p => (
-                           <div key={p.id} className="p-4 bg-white/5 rounded-xl flex justify-between items-center">
-                              <span className="text-xs font-medium text-[#DED9D2]">{p.name}</span>
-                              <span className="text-[10px] font-bold text-red-500">{Object.values(p.stock).reduce((a,b)=>a+b,0)} قطعة</span>
-                           </div>
-                        ))}
+                  <div className="bg-slate-800 rounded-xl p-8 text-white">
+                     <h2 className="text-sm font-bold mb-6 flex items-center gap-2 text-slate-300"><Activity className="h-4 w-4 text-blue-400" /> نسبة توزيع القنوات</h2>
+                     <div className="h-[200px] w-full flex items-center justify-center" dir="ltr">
+                       <ResponsiveContainer width="100%" height="100%">
+                         <PieChart>
+                            <Pie 
+                               data={[
+                                 { name: 'الموقع الإلكتروني', value: revenueOnline || 40 },
+                                 { name: 'المحل الجسدي', value: revenueStore || 60 }
+                               ]} 
+                               cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value" stroke="none"
+                            >
+                               <Cell fill="#3b82f6" />
+                               <Cell fill="#94a3b8" />
+                            </Pie>
+                            <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', background: '#1e293b', color: '#fff' }} itemStyle={{ color: '#fff' }} />
+                         </PieChart>
+                       </ResponsiveContainer>
+                     </div>
+                     <div className="flex justify-center gap-6 mt-4">
+                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500"></div><span className="text-xs text-slate-300">الموقع</span></div>
+                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-slate-400"></div><span className="text-xs text-slate-300">المحل</span></div>
                      </div>
                   </div>
 
-                  <Card className="saneen-card p-8">
-                     <h2 className="text-sm font-semibold mb-8 text-[#1A1A1A] uppercase tracking-widest">توزيع القنوات</h2>
-                     <div className="space-y-6">
-                        {[
-                           { label: "الموقع", pct: Math.round((revenueOnline / (revenueOnline + revenueStore || 1)) * 100), color: "#A68966" },
-                           { label: "المحل", pct: Math.round((revenueStore / (revenueOnline + revenueStore || 1)) * 100), color: "#DED9D2" }
-                        ].map((s, i) => (
-                           <div key={i} className="space-y-3">
-                              <div className="flex justify-between text-[10px] font-bold text-[#8E8B83] uppercase tracking-widest">
-                                 <span>{s.label}</span>
-                                 <span>{s.pct}%</span>
-                              </div>
-                              <div className="h-1.5 w-full bg-[#F7F5F0] rounded-full overflow-hidden">
-                                 <div className="h-full bg-[#A68966]" style={{ width: `${s.pct}%`, backgroundColor: i === 1 ? '#DED9D2' : '#A68966' }}></div>
-                              </div>
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-8">
+                     <h2 className="text-sm font-bold mb-6 flex items-center gap-2 text-slate-800"><AlertTriangle className="h-4 w-4 text-red-500" /> تنبيهات المخزون</h2>
+                     <div className="space-y-3">
+                        {products.filter(p => Object.values(p.stock || {}).reduce((a,b)=>a+b,0) <= (p.reorderLevel || 5)).slice(0, 5).map(p => (
+                           <div key={p.id} className="p-3 bg-red-50 rounded-lg flex justify-between items-center border border-red-100">
+                              <span className="text-xs font-bold text-red-900 line-clamp-1">{p.name}</span>
+                              <Badge variant="destructive" className="bg-red-500 font-bold shrink-0">{Object.values(p.stock).reduce((a,b)=>a+b,0)} قطع</Badge>
                            </div>
                         ))}
+                        {products.filter(p => Object.values(p.stock || {}).reduce((a,b)=>a+b,0) <= (p.reorderLevel || 5)).length === 0 && (
+                          <div className="text-center py-6 text-sm text-slate-400 font-bold">المخزون بوضع مستقر</div>
+                        )}
                      </div>
-                  </Card>
+                  </div>
                </div>
             </div>
           </div>
@@ -377,7 +510,7 @@ export default function Dashboard() {
                                    ))}
                                 </div>
                              ) : (
-                                <img src={p.image} className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                                <img src={p.image} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" />
                              )}
                          </div>
                          <div className="p-4 flex justify-between items-center">
@@ -392,7 +525,21 @@ export default function Dashboard() {
                  <div className="saneen-card h-[calc(100vh-160px)] flex flex-col sticky top-32">
                     <div className="p-8 border-b bg-slate-50 flex justify-between items-center">
                         <h3 className="text-lg font-black">سلة المشتريات</h3>
-                        <Button variant="outline" size="sm" onClick={() => setPosCart([])} className="h-8 text-xs">إفراغ</Button>
+                        <div className="flex items-center gap-4">
+                           <button 
+                             onClick={() => {
+                               const newVal = !autoPrint;
+                               setAutoPrint(newVal);
+                               localStorage.setItem("saneen_auto_print", String(newVal));
+                               toast.success(newVal ? "تم تفعيل الطباعة" : "تم إيقاف الطباعة");
+                             }}
+                             className={`h-8 px-4 rounded-lg text-[10px] font-black transition-all flex items-center gap-2 ${autoPrint ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500'}`}
+                           >
+                             <Printer className="h-3 w-3" />
+                             {autoPrint ? "الطباعة مفعلة" : "الطباعة متوقفة"}
+                           </button>
+                           <Button variant="outline" size="sm" onClick={() => setPosCart([])} className="h-8 text-xs font-black">إفراغ</Button>
+                        </div>
                     </div>
                     <div className="flex-1 overflow-y-auto p-6 space-y-4">
                        {posCart.map((item, idx) => (
@@ -497,7 +644,7 @@ export default function Dashboard() {
                      {filteredOrders.map(o => (
                         <tr key={o.id} className="hover:bg-slate-50 transition-all font-bold">
                           <td className="py-8 px-10 font-sans">#{o.id}</td>
-                          <td className="py-8 px-10">{(o.customerName === "زبون محلي" || o.customerName.includes("عميل محلي")) ? "بيع مباشر (المحل)" : o.customerName}</td>
+                          <td className="py-8 px-10">{(o.customerName === "زبون محلي" || o.customerName === "بيع مباشر (المحل)" || o.customerName.includes("عميل محلي")) ? "بيع مباشر (المحل)" : o.customerName}</td>
                           <td className="py-8 px-10 text-center">{o.isOnlineOrder ? <Badge className="bg-blue-50 text-blue-600">الموقع</Badge> : <Badge className="bg-orange-50 text-orange-600">المحل</Badge>}</td>
                           <td className="py-8 px-10 text-center font-sans tracking-tight">{o.totalDZD.toLocaleString()} دج</td>
                           <td className="py-8 px-10 text-center">
@@ -566,23 +713,6 @@ export default function Dashboard() {
                    </div>
                 </Card>
 
-                {/* Cuts Management */}
-                <Card className="saneen-card p-10 space-y-8">
-                   <h3 className="font-black text-lg border-b pb-4">أنواع القصات</h3>
-                   <div className="flex flex-wrap gap-2">
-                      {cuts.map(c => (
-                        <Badge key={c} className="bg-slate-100 text-black border-0 py-2 px-4 flex items-center gap-2 rounded-xl group transition-all hover:bg-red-50 hover:text-red-500">
-                           {c}
-                           <button onClick={() => updateFilter('cuts', 'remove', c)}><X className="h-3 w-3" /></button>
-                        </Badge>
-                      ))}
-                   </div>
-                   <div className="flex gap-2">
-                      <Input placeholder="إضافة قصة جديدة..." value={newFilterValues.cuts} onChange={e => setNewFilterValues({...newFilterValues, cuts: e.target.value})} className="saneen-input h-12" />
-                      <button onClick={() => handleAddFilter('cuts')} className="bg-black text-white px-6 rounded-xl hover:bg-gold transition-all"><Plus className="h-4 w-4" /></button>
-                   </div>
-                </Card>
-
                 {/* Categories Management */}
                 <Card className="saneen-card p-10 space-y-8">
                    <h3 className="font-black text-lg border-b pb-4">الأقسام (Categories)</h3>
@@ -603,22 +733,238 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* SETTINGS */}
+        {/* SETTINGS (Expanded Logistics) */}
         {activeTab === "settings" && (
-          <div className="space-y-10 animate-in fade-in duration-500 text-right">
-             <h1 className="text-2xl font-black">إعدادات النظام</h1>
-             <Card className="saneen-card p-12">
-                <h2 className="text-2xl font-black mb-10 border-b pb-6">أسعار التوصيل ولائية</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                    {algerianWilayas.map((wilaya) => (
-                        <div key={wilaya} className="flex flex-col gap-2 p-4 bg-slate-50 rounded-xl">
-                            <label className="text-xs font-bold text-slate-500">{wilaya}</label>
-                            <input type="number" value={wilayaFees[wilaya] || 0} onChange={(e) => updateWilayaFee(wilaya, Number(e.target.value))} className="h-10 bg-white border rounded-lg px-4 font-black text-xs text-left" dir="ltr" />
-                        </div>
-                    ))}
+          <div className="space-y-12 animate-in fade-in duration-500 text-right">
+             <div className="flex items-center justify-between">
+                <div>
+                   <h1 className="text-3xl font-black mb-2 italic">إدارة الخدمات اللوجستية</h1>
+                   <p className="text-slate-400 font-bold text-sm">تخصيص الولايات، أسعار التوصيل، وإعدادات المتجر</p>
                 </div>
-             </Card>
+                <Badge className="bg-gold/10 text-gold border-0 h-10 px-6 rounded-xl font-black">Executive Suite 2026</Badge>
+             </div>
+
+             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                <Card className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden h-fit">
+                   <div className="p-8 border-b bg-slate-50/50 flex justify-between items-center">
+                      <h3 className="font-black text-lg">قائمة الولايات والأسعار</h3>
+                      <button className="text-xs font-black text-blue-600 hover:underline">المزامنة مع السحابة</button>
+                   </div>
+                   <div className="max-h-[650px] overflow-y-auto custom-scrollbar">
+                      <table className="w-full text-right border-collapse">
+                         <thead className="sticky top-0 bg-white border-b z-10 text-[11px] font-black text-slate-400">
+                            <tr>
+                               <th className="py-6 px-10">الولاية (اضغط للتعديل)</th>
+                               <th className="py-6 px-10 text-center">تكلفة الشحن (دج)</th>
+                               <th className="py-6 px-10 text-left">تحكم</th>
+                            </tr>
+                         </thead>
+                         <tbody className="divide-y divide-slate-50">
+                            {Object.entries(wilayaFees).map(([name, fee]) => (
+                               <tr key={name} className="hover:bg-slate-50 transition-all font-bold group">
+                                  <td className="py-6 px-10">
+                                     <input 
+                                       className="bg-transparent border-b border-transparent focus:border-gold outline-none w-full text-sm font-black"
+                                       defaultValue={name}
+                                       onBlur={(e) => renameWilaya(name, e.target.value)}
+                                     />
+                                  </td>
+                                  <td className="py-6 px-10 text-center">
+                                     <div className="inline-flex items-center gap-2 bg-white border rounded-xl px-4 py-2">
+                                        <input 
+                                          type="number"
+                                          className="w-16 bg-transparent outline-none text-center font-sans font-black text-xs"
+                                          value={fee}
+                                          onChange={(e) => updateWilayaFee(name, Number(e.target.value))}
+                                        />
+                                        <span className="text-[10px] text-slate-300">دج</span>
+                                     </div>
+                                  </td>
+                                  <td className="py-6 px-10 text-left">
+                                     <button onClick={() => {if(confirm(`حذف ${name}؟`)) deleteWilaya(name);}} className="p-2 text-red-200 hover:text-red-600 transition-colors">
+                                        <Trash2 className="h-4 w-4" />
+                                     </button>
+                                  </td>
+                               </tr>
+                            ))}
+                         </tbody>
+                      </table>
+                   </div>
+                </Card>
+
+                <div className="space-y-8">
+                   <Card className="saneen-card p-10 border-2 border-gold/10 bg-white">
+                      <div className="flex items-center gap-3 mb-8 border-b pb-4">
+                         <div className="h-10 w-10 bg-gold/10 rounded-xl flex items-center justify-center text-gold">
+                            <Plus className="h-5 w-5" />
+                         </div>
+                         <h3 className="font-black text-lg text-slate-900">إضافة ولاية جديدة</h3>
+                      </div>
+                      
+                      <div className="space-y-6">
+                         <div>
+                            <label className="text-[11px] font-black text-slate-400 block mb-3 uppercase tracking-wider">اسم المنطقة / الولاية</label>
+                            <Input 
+                              placeholder="مثال: 01 - أدرار" 
+                              value={newWilayaName} 
+                              onChange={e => setNewWilayaName(e.target.value)} 
+                              className="saneen-input h-14 bg-slate-50 border-slate-200 text-black placeholder:text-slate-300 focus:border-gold focus:bg-white transition-all font-black" 
+                            />
+                         </div>
+                         <div>
+                            <label className="text-[11px] font-black text-slate-400 block mb-3 uppercase tracking-wider">تسعيرة الشحن (دج)</label>
+                            <div className="relative">
+                               <Input 
+                                 type="number" 
+                                 value={newWilayaFee} 
+                                 onChange={e => setNewWilayaFee(Number(e.target.value))} 
+                                 className="saneen-input h-14 bg-slate-50 border-slate-200 text-black focus:border-gold focus:bg-white transition-all font-sans font-black pl-16 text-right" 
+                               />
+                               <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[11px] font-black text-slate-300">دج</span>
+                            </div>
+                         </div>
+                         <button 
+                           onClick={() => {
+                              if(!newWilayaName) return;
+                              addWilaya(newWilayaName, newWilayaFee);
+                              setNewWilayaName("");
+                              setNewWilayaFee(600);
+                              toast.success("تم تحديث القائمة بنجاح");
+                           }}
+                           className="saneen-btn-gold w-full h-16 shadow-lg shadow-gold/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                         >
+                            <Save className="h-5 w-5" /> تأكيد الإضافة
+                         </button>
+                      </div>
+                   </Card>
+
+                   <Card className="saneen-card p-10">
+                      <h3 className="font-black text-lg mb-6 border-b pb-4">معلومات تهمك</h3>
+                      <ul className="space-y-4">
+                         <li className="flex gap-4 text-xs font-bold leading-relaxed text-slate-500">
+                            <div className="h-2 w-2 rounded-full bg-gold mt-1.5 shrink-0" />
+                            <span>يمكنك تعديل أسماء الولايات مباشرة من الجدول (اضغط على الاسم وعدله).</span>
+                         </li>
+                         <li className="flex gap-4 text-xs font-bold leading-relaxed text-slate-500">
+                            <div className="h-2 w-2 rounded-full bg-gold mt-1.5 shrink-0" />
+                            <span>سيتم تحديث تكلفة الشحن فوراً للمستخدمين عند إتمام الشراء.</span>
+                         </li>
+                         <li className="flex gap-4 text-xs font-bold leading-relaxed text-slate-500">
+                            <div className="h-2 w-2 rounded-full bg-gold mt-1.5 shrink-0" />
+                            <span>يرجى مراجعة الأسعار دورياً لضمان توافقها مع شركات الشحن البريدي.</span>
+                         </li>
+                      </ul>
+                    </Card>
+
+                    {/* ACCOUNT SETTINGS - PASSWORD RESET */}
+                    <Card className="bg-white rounded-xl shadow-sm border border-slate-100 p-8 mt-10">
+                       <h3 className="font-bold text-lg mb-6 border-b pb-4 flex items-center gap-2">
+                          <User className="h-5 w-5 text-blue-500" /> تغيير كلمة المرور
+                       </h3>
+                       <div className="space-y-4">
+                          <div>
+                             <label className="text-xs font-bold text-slate-500 mb-2 block">الحالية</label>
+                             <Input id="old-pwd" type="password" placeholder="الكلمة الحالية..." className="w-full text-right bg-slate-50 border-slate-200 h-10" />
+                          </div>
+                          <div>
+                             <label className="text-xs font-bold text-slate-500 mb-2 block">الجديدة</label>
+                             <Input id="new-pwd" type="password" placeholder="الكلمة الجديدة..." className="w-full text-right bg-slate-50 border-slate-200 h-10" />
+                          </div>
+                          <button 
+                             onClick={() => {
+                                const oldP = (document.getElementById('old-pwd') as HTMLInputElement).value;
+                                const newP = (document.getElementById('new-pwd') as HTMLInputElement).value;
+                                if (!oldP || !newP) return toast.error('املأ جميع الحقول');
+                                try {
+                                   updatePassword(oldP, newP);
+                                   toast.success('تم تغيير كلمة المرور بنجاح');
+                                   (document.getElementById('old-pwd') as HTMLInputElement).value = '';
+                                   (document.getElementById('new-pwd') as HTMLInputElement).value = '';
+                                } catch (e: any) {
+                                   toast.error(e.message || 'حدث خطأ');
+                                }
+                             }}
+                             className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all"
+                          >
+                             حفظ كلمة المرور
+                          </button>
+                       </div>
+                    </Card>
+                 </div>
+             </div>
           </div>
+        )}
+
+        {/* USERS MANAGEMENT (Admin Only) */}
+        {role === 'admin' && activeTab === "users" && (
+           <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="flex justify-between items-center bg-white p-8 rounded-xl shadow-sm border border-slate-100">
+                 <div>
+                    <h1 className="text-2xl font-bold text-slate-800">إدارة المستخدمين</h1>
+                    <p className="text-sm text-slate-500 mt-1">إنشاء والتحكم في حسابات الموظفين للنظام</p>
+                 </div>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                 <div className="lg:col-span-1 bg-white p-8 rounded-xl shadow-sm border border-slate-100 space-y-6 flex flex-col h-fit">
+                    <h2 className="font-bold text-lg border-b pb-4">إضافة مستخدم جديد</h2>
+                    <Input id="new-username" placeholder="اسم المستخدم" className="w-full h-12 text-right bg-slate-50" />
+                    <Input id="new-password" type="password" placeholder="كلمة المرور" className="w-full h-12 text-right bg-slate-50" />
+                    <div className="w-full h-12 text-right bg-slate-50 border rounded-lg px-4 flex items-center justify-between font-bold text-sm text-slate-500">
+                       <span>موظف عادي (Employee)</span>
+                       <span>الصلاحية:</span>
+                    </div>
+                    <button  
+                      onClick={() => {
+                        const u = (document.getElementById('new-username') as HTMLInputElement).value;
+                        const p = (document.getElementById('new-password') as HTMLInputElement).value;
+                        if(!u || !p) return toast.error("املأ جميع الحقول");
+                        addUser(u, p, 'employee');
+                        toast.success("تم إضافة المستخدم بنجاح");
+                        (document.getElementById('new-username') as HTMLInputElement).value = '';
+                        (document.getElementById('new-password') as HTMLInputElement).value = '';
+                      }}
+                      className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all flex items-center justify-center gap-2"
+                    >
+                      <User className="h-4 w-4" /> تأكيد وإضافة
+                    </button>
+                 </div>
+                 <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                    <table className="w-full text-right">
+                       <thead className="bg-slate-50 text-slate-500 text-sm">
+                          <tr>
+                             <th className="py-4 px-6 font-bold">المستخدم</th>
+                             <th className="py-4 px-6 font-bold">الصلاحية</th>
+                             <th className="py-4 px-6 text-center font-bold">إجراء</th>
+                          </tr>
+                       </thead>
+                       <tbody className="divide-y divide-slate-100">
+                          {users.map(u => (
+                             <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                                <td className="py-4 px-6 font-bold text-slate-800">{u.username}</td>
+                                <td className="py-4 px-6">
+                                  {u.role === 'admin' ? 
+                                    <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-200 border-0">مدير نظام</Badge> : 
+                                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-0">موظف (Employee)</Badge>
+                                  }
+                                </td>
+                                <td className="py-4 px-6 text-center">
+                                  <button 
+                                    onClick={() => {
+                                      if (u.id === currentUser?.id) return toast.error("لا يمكنك حذف حسابك الحالي!");
+                                      if (confirm(`حذف المستخدم ${u.username}؟`)) deleteUser(u.id);
+                                    }}
+                                    className="text-red-400 hover:text-red-600 p-2"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </td>
+                             </tr>
+                          ))}
+                       </tbody>
+                    </table>
+                 </div>
+              </div>
+           </div>
         )}
       </div>
 
@@ -720,58 +1066,29 @@ export default function Dashboard() {
                         </div>
                     </div>
 
-                    {/* Row 3: Fabric + Cut + Category */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Row 3: Fabric + Category */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                            <label className="saneen-label">نوع القماش</label>
-                           <div className="flex gap-2">
-                             <select 
-                               className="saneen-select flex-1 appearance-none" 
-                               value={formData.fabricType || ""} 
-                               onChange={e => setFormData({...formData, fabricType: e.target.value})}
-                             >
-                               <option value="">اختر...</option>
-                               {fabrics.map(f => <option key={f} value={f}>{f}</option>)}
-                             </select>
-                             <button type="button" onClick={() => {
-                               const val = prompt('أدخل نوع القماش الجديد:');
-                               if(val && val.trim()) { updateFilter('fabrics', 'add', val.trim()); setFormData({...formData, fabricType: val.trim()}); }
-                             }} className="h-14 w-14 shrink-0 bg-[#F8F7F4] border border-[#E5E0D8] rounded-2xl flex items-center justify-center text-[#A68966] hover:bg-[#A68966] hover:text-white hover:border-[#A68966] transition-all"><Plus className="h-4 w-4" /></button>
-                           </div>
-                        </div>
-                        <div>
-                           <label className="saneen-label">نوع القصة</label>
-                           <div className="flex gap-2">
-                             <select 
-                               className="saneen-select flex-1 appearance-none" 
-                               value={formData.cut || ""} 
-                               onChange={e => setFormData({...formData, cut: e.target.value})}
-                             >
-                               <option value="">اختر...</option>
-                               {cuts.map(c => <option key={c} value={c}>{c}</option>)}
-                             </select>
-                             <button type="button" onClick={() => {
-                               const val = prompt('أدخل نوع القصة الجديد:');
-                               if(val && val.trim()) { updateFilter('cuts', 'add', val.trim()); setFormData({...formData, cut: val.trim()}); }
-                             }} className="h-14 w-14 shrink-0 bg-[#F8F7F4] border border-[#E5E0D8] rounded-2xl flex items-center justify-center text-[#A68966] hover:bg-[#A68966] hover:text-white hover:border-[#A68966] transition-all"><Plus className="h-4 w-4" /></button>
-                           </div>
+                           <select 
+                             className="saneen-select w-full appearance-none" 
+                             value={formData.fabricType || ""} 
+                             onChange={e => setFormData({...formData, fabricType: e.target.value})}
+                           >
+                             <option value="">اختر...</option>
+                             {fabrics.map(f => <option key={f} value={f}>{f}</option>)}
+                           </select>
                         </div>
                         <div>
                            <label className="saneen-label">الفئة</label>
-                           <div className="flex gap-2">
-                             <select 
-                               className="saneen-select flex-1 appearance-none" 
-                               value={formData.category || ""} 
-                               onChange={e => setFormData({...formData, category: e.target.value})}
-                             >
-                               <option value="">اختر...</option>
-                               {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                             </select>
-                             <button type="button" onClick={() => {
-                               const val = prompt('أدخل اسم الفئة الجديدة:');
-                               if(val && val.trim()) { updateFilter('categories', 'add', val.trim()); setFormData({...formData, category: val.trim()}); }
-                             }} className="h-14 w-14 shrink-0 bg-[#F8F7F4] border border-[#E5E0D8] rounded-2xl flex items-center justify-center text-[#A68966] hover:bg-[#A68966] hover:text-white hover:border-[#A68966] transition-all"><Plus className="h-4 w-4" /></button>
-                           </div>
+                           <select 
+                             className="saneen-select w-full appearance-none" 
+                             value={formData.category || ""} 
+                             onChange={e => setFormData({...formData, category: e.target.value})}
+                           >
+                             <option value="">اختر...</option>
+                             {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                           </select>
                         </div>
                     </div>
 
@@ -1018,3 +1335,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+

@@ -20,6 +20,7 @@ export interface Product {
   isPublished: boolean;
   stock: Record<string, number>;
   reorderLevel: number;
+  washInstructions?: string;
 }
 
 const INITIAL_PRODUCTS: Product[] = [
@@ -54,6 +55,7 @@ interface ProductsContextType {
   updateProduct: (id: string, updates: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
   sellInStore: (productId: string, size: string) => void;
+  returnToStock: (productId: string, size: string, quantity?: number) => void;
   getProductPrice: (product: Product, size: string) => number;
   updateFilter: (type: 'sizes' | 'cuts' | 'fabrics' | 'categories', action: 'add' | 'remove', value: string) => void;
 }
@@ -70,8 +72,25 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const savedProducts = localStorage.getItem("saneen_products_dynamic");
-      if (savedProducts) setProducts(JSON.parse(savedProducts));
-      else setProducts(INITIAL_PRODUCTS);
+      let parsed = savedProducts ? JSON.parse(savedProducts) : INITIAL_PRODUCTS;
+      
+      const hasDummy = parsed.some((p: Product) => p.name.includes("تجريبي"));
+      if (!hasDummy) {
+        parsed.push({
+          id: "dummy-1", name: "عباءة حريرية (تنبيه تجريبي - مخزون منخفض)", basePriceDZD: 12000, sizePrices: { "54": 12000 },
+          discountPercent: 0, image: "none", description: "بيانات تجريبية لعرض التنبيه", fabric: "حرير", fabricType: "حرير",
+          cut: "بشت", colors: ["أسود"], sizes: ["54"], category: "الكل", featured: false, isPublished: true,
+          stock: { "54": 2 }, reorderLevel: 5
+        });
+        parsed.push({
+          id: "dummy-2", name: "طقم صلاة (تنبيه تجريبي - نفاد الكمية)", basePriceDZD: 6000, sizePrices: { "Standard": 6000 },
+          discountPercent: 0, image: "none", description: "بيانات تجريبية لعرض التنبيه", fabric: "قطن", fabricType: "قطن",
+          cut: "أخرى", colors: ["وردي"], sizes: ["Standard"], category: "الكل", featured: false, isPublished: true,
+          stock: { "Standard": 0 }, reorderLevel: 3
+        });
+        localStorage.setItem("saneen_products_dynamic", JSON.stringify(parsed));
+      }
+      setProducts(parsed);
 
       const savedFilters = localStorage.getItem("saneen_filters");
       if (savedFilters) {
@@ -137,7 +156,14 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
 
   const sellInStore = (productId: string, size: string) => {
     saveAndSet(products.map(p => {
-      if (p.id === productId && p.stock[size] > 0) return { ...p, stock: { ...p.stock, [size]: p.stock[size] - 1 } };
+      if (p.id === productId && p.stock?.[size] > 0) return { ...p, stock: { ...p.stock, [size]: p.stock[size] - 1 } };
+      return p;
+    }));
+  };
+
+  const returnToStock = (productId: string, size: string, quantity: number = 1) => {
+    saveAndSet(products.map(p => {
+      if (p.id === productId) return { ...p, stock: { ...p.stock, [size]: (p.stock?.[size] || 0) + quantity } };
       return p;
     }));
   };
@@ -145,7 +171,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
   return (
     <ProductsContext.Provider value={{ 
       products, sizes, cuts, fabrics, categories, 
-      addProduct, updateProduct, deleteProduct, sellInStore, getProductPrice, updateFilter 
+      addProduct, updateProduct, deleteProduct, sellInStore, returnToStock, getProductPrice, updateFilter 
     }}>
       {children}
     </ProductsContext.Provider>

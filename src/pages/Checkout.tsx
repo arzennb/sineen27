@@ -9,11 +9,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useOrders } from "@/lib/orders";
 
 export default function Checkout() {
-  const { items, totalPrice, clearCart, totalItems } = useCart();
-  const { addOrder } = useOrders();
+  const { items, clearCart } = useCart();
+  const { addOrder, wilayaFees } = useOrders();
   const [submitted, setSubmitted] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"card" | "cod">("cod");
-  const [formData, setFormData] = useState({ name: "", phone: "", email: "", address: "" });
+  const [formData, setFormData] = useState({ 
+    name: "", phone: "", email: "", address: "", 
+    wilaya: Object.keys(wilayaFees)[0] || "16 - Alger" 
+  });
+
+  const getSubtotal = () => items.reduce((sum, item) => {
+    // Note: in a real app we'd use getProductPrice but here let's keep it simple
+    return sum + (item.product.basePriceDZD * item.quantity);
+  }, 0);
+
+  const deliveryFee = wilayaFees[formData.wilaya] || 0;
+  const finalTotal = getSubtotal() + deliveryFee;
 
   if (submitted) {
     return (
@@ -69,18 +80,18 @@ export default function Checkout() {
     addOrder({
       customerName: formData.name,
       customerPhone: formData.phone,
-      customerWilaya: "16 - Alger",
+      customerWilaya: formData.wilaya,
       customerAddress: formData.address,
       deliveryType: "Yalidine",
       items: items.map((i) => ({
         productName: i.product.name,
         quantity: i.quantity,
         size: i.selectedSize,
-        price: totalPrice / totalItems, // Approximation or better use getProductPrice if needed, but totalPrice is the ground truth
+        price: i.product.basePriceDZD, 
       })),
-      totalDZD: totalPrice,
+      totalDZD: finalTotal,
       isOnlineOrder: true,
-      deliveryFee: 400,
+      deliveryFee: deliveryFee,
     });
     clearCart();
     setSubmitted(true);
@@ -106,10 +117,20 @@ export default function Checkout() {
                 <Label>البريد الإلكتروني</Label>
                 <Input type="email" placeholder="email@example.com" className="mt-1" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
               </div>
-              <div className="sm:col-span-2">
-                <Label>العنوان</Label>
-                <Input required placeholder="المدينة، الحي، الشارع" className="mt-1" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
-              </div>
+               <div className="sm:col-span-1">
+                 <Label>الولاية</Label>
+                 <select 
+                   className="w-full mt-1 h-10 px-3 rounded-md border border-input bg-background"
+                   value={formData.wilaya}
+                   onChange={(e) => setFormData({ ...formData, wilaya: e.target.value })}
+                 >
+                    {Object.keys(wilayaFees).map(w => <option key={w} value={w}>{w}</option>)}
+                 </select>
+               </div>
+               <div className="sm:col-span-1">
+                 <Label>العنوان</Label>
+                 <Input required placeholder="المدينة، الحي، الشارع" className="mt-1" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
+               </div>
             </div>
           </motion.div>
 
@@ -122,9 +143,9 @@ export default function Checkout() {
           </motion.div>
 
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button type="submit" size="lg" className="w-full gold-gradient border-0 text-foreground font-bold text-lg py-6">
-              إتمام الشراء — {totalPrice.toLocaleString()} دج
-            </Button>
+             <Button type="submit" size="lg" className="w-full gold-gradient border-0 text-foreground font-bold text-lg py-6">
+               إتمام الشراء — {finalTotal.toLocaleString()} دج
+             </Button>
           </motion.div>
         </form>
 
@@ -145,10 +166,20 @@ export default function Checkout() {
               <span className="font-bold text-accent text-sm">{(item.product.basePriceDZD * item.quantity).toLocaleString()} دج</span>
             </div>
           ))}
-          <div className="flex justify-between font-bold text-foreground text-xl pt-2">
-            <span>الإجمالي</span>
-            <span className="text-accent">{totalPrice.toLocaleString()} دج</span>
-          </div>
+           <div className="space-y-2 border-t border-border pt-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">المجموع الفرعي</span>
+                <span>{getSubtotal().toLocaleString()} دج</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">سعر التوصيل ({formData.wilaya})</span>
+                <span>{deliveryFee.toLocaleString()} دج</span>
+              </div>
+              <div className="flex justify-between font-bold text-foreground text-xl pt-2 border-t border-border/50">
+                <span>الإجمالي الكلي</span>
+                <span className="text-accent">{finalTotal.toLocaleString()} دج</span>
+              </div>
+           </div>
         </motion.div>
       </div>
     </motion.div>

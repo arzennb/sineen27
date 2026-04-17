@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useCart } from "@/lib/cart";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
-
 const navLinks = [
   { to: "/", label: "الرئيسية" },
   { to: "/products", label: "المنتجات" },
@@ -52,16 +51,17 @@ export default function Navbar() {
             <ShoppingCart className="h-5 w-5" />
             <AnimatePresence>
               {totalItems > 0 && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 20 }}
-                >
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs gold-gradient text-accent-foreground border-0">
-                    {totalItems}
-                  </Badge>
-                </motion.div>
+                  <motion.div
+                    className="absolute -top-1 -right-1"
+                    initial={{ scale: 0.5, y: 5, opacity: 0 }}
+                    animate={{ scale: 1, y: 0, opacity: 1 }}
+                    exit={{ scale: 0, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  >
+                    <Badge className="h-5 w-5 flex items-center justify-center p-0 text-xs gold-gradient text-accent-foreground border-0">
+                      {totalItems}
+                    </Badge>
+                  </motion.div>
               )}
             </AnimatePresence>
           </Link>

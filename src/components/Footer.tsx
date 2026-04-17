@@ -23,8 +23,8 @@ export default function Footer() {
           <h4 className="font-heading text-lg font-bold mb-4">تواصل معنا</h4>
           <ul className="space-y-2 text-sm opacity-80">
             <li>البريد: info@prayer-robes.com</li>
-            <li>الهاتف: +966 50 123 4567</li>
-            <li>العنوان: الرياض، المملكة العربية السعودية</li>
+            <li>الهاتف: +213 550 12 34 56</li>
+            <li>العنوان: مستغانم، الجزائر</li>
           </ul>
         </div>
       </div>

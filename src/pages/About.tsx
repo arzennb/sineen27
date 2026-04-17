@@ -74,7 +74,7 @@ export default function About() {
       >
         <h2 className="font-heading text-3xl font-bold mb-4">التزامنا تجاهكم</h2>
         <p className="max-w-2xl mx-auto opacity-90 leading-relaxed text-lg">
-          منذ تأسيسنا ونحن نسعى لتقديم أفضل المنتجات بأسعار منافسة. نفخر بخدمة آلاف العملاء في جميع أنحاء المملكة
+          منذ تأسيسنا ونحن نسعى لتقديم أفضل المنتجات بأسعار منافسة. نفخر بخدمة آلاف العملاء في جميع ولايات الوطن
           ونحرص على رضاكم التام مع كل طلب.
         </p>
       </motion.div>

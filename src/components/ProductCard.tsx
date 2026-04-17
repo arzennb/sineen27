@@ -11,6 +11,9 @@ export default function ProductCard({ product, index = 0 }: { product: Product; 
   const { getProductPrice } = useProducts();
   const { addItem } = useCart();
   const { toast } = useToast();
+  
+  const price = getProductPrice(product, product.sizes[0]);
+  const originalPrice = product.basePriceDZD;
 
   const [showSizes, setShowSizes] = useState(false);
 
@@ -33,9 +36,10 @@ export default function ProductCard({ product, index = 0 }: { product: Product; 
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: index * 0.1 }}
+      className="h-full"
     >
-      <Link to={`/product/${product.id}`} className="group block">
-        <div className="bg-card rounded-xl overflow-hidden border border-border transition-all duration-300 hover:shadow-xl hover:-translate-y-2 hover:border-accent/30">
+      <Link to={`/product/${product.id}`} className="group flex flex-col h-full">
+        <div className="bg-card rounded-xl overflow-hidden border border-border flex flex-col h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-2 hover:border-accent/30">
           <div className="aspect-[3/4] overflow-hidden relative">
 
             <img
@@ -90,12 +94,14 @@ export default function ProductCard({ product, index = 0 }: { product: Product; 
               </div>
             )}
           </div>
-          <div className="p-4 space-y-2">
-            <h3 className="font-heading text-lg font-bold text-foreground leading-tight group-hover:text-accent transition-colors">
-              {product.name}
-            </h3>
-            <p className="text-sm text-muted-foreground">{product.fabricType}</p>
-            <div className="flex items-center justify-between pt-2">
+          <div className="p-4 flex flex-col flex-1 justify-between gap-4">
+            <div>
+              <h3 className="font-heading text-lg font-bold text-foreground leading-snug group-hover:text-accent transition-colors line-clamp-2 min-h-[3rem]">
+                {product.name}
+              </h3>
+              <p className="text-sm text-muted-foreground mt-2">{product.fabricType}</p>
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-border/50">
               <div className="flex items-center gap-3">
                 <span className="text-3xl font-bold text-accent">{price.toLocaleString()} دج</span>
                 {product.discountPercent > 0 && (

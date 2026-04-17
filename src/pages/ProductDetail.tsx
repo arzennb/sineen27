@@ -168,10 +168,12 @@ export default function ProductDetail() {
             </motion.div>
           </div>
 
-          <div className="bg-secondary rounded-xl p-4">
-            <h4 className="font-bold text-foreground mb-1">تعليمات الغسيل</h4>
-            <p className="text-sm text-muted-foreground">{product.washInstructions}</p>
-          </div>
+          {product.washInstructions && (
+            <div className="bg-secondary rounded-xl p-4">
+              <h4 className="font-bold text-foreground mb-1">تعليمات الغسيل</h4>
+              <p className="text-sm text-muted-foreground">{product.washInstructions}</p>
+            </div>
+          )}
         </motion.div>
       </div>
 

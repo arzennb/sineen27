@@ -7,8 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 
 const contactInfo = [
   { icon: Mail, label: "البريد الإلكتروني", value: "info@prayer-robes.com" },
-  { icon: Phone, label: "الهاتف", value: "+966 50 123 4567" },
-  { icon: MapPin, label: "العنوان", value: "الرياض، المملكة العربية السعودية" },
+  { icon: Phone, label: "الهاتف", value: "+213 550 12 34 56" },
+  { icon: MapPin, label: "العنوان", value: "مستغانم، الجزائر" },
 ];
 
 export default function Contact() {
@@ -49,7 +49,7 @@ export default function Contact() {
           {/* Map placeholder */}
           <div className="w-full h-64 rounded-lg overflow-hidden border border-border">
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d463876.9931806945!2d46.54233!3d24.7136!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3e2f03890d489399%3A0xba974d1c98e79fd5!2sRiyadh%20Saudi%20Arabia!5e0!3m2!1sen!2s!4v1234567890"
+              src="https://maps.google.com/maps?q=Mostaganem,%20Algeria&t=&z=12&ie=UTF8&iwloc=&output=embed"
               className="w-full h-full"
               style={{ border: 0 }}
               allowFullScreen

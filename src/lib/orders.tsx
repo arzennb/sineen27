@@ -23,7 +23,7 @@ export const initialWilayaFees: Record<string, number> = {
   "57 - El M'Ghair": 800, "58 - El Meniaa": 900
 };
 
-export const algerianWilayas = Object.keys(initialWilayaFees);
+export let algerianWilayas = Object.keys(initialWilayaFees);
 
 export interface OrderItem {
   productName: string;
@@ -45,6 +45,8 @@ export interface Order {
   status: OrderStatus;
   isOnlineOrder: boolean; // تمييز بين طلبات الموقع والمحل (Hybrid)
   deliveryFee?: number;
+  cashierId?: string;
+  cashierName?: string;
 }
 
 interface OrdersContextType {
@@ -55,6 +57,9 @@ interface OrdersContextType {
   updateOrder: (orderId: string, updatedOrder: Partial<Order>) => void;
   deleteOrder: (id: string) => void;
   updateWilayaFee: (wilaya: string, fee: number) => void;
+  addWilaya: (name: string, fee: number) => void;
+  deleteWilaya: (name: string) => void;
+  renameWilaya: (oldName: string, newName: string) => void;
   getTotalRevenue: (source: 'online' | 'store') => number;
 }
 
@@ -133,9 +138,31 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   };
 
   const updateWilayaFee = (wilaya: string, fee: number) => {
-    const newFees = { ...wilayaFees, [wilaya]: fee };
-    setWilayaFees(newFees);
-    localStorage.setItem("saneen_wilaya_fees", JSON.stringify(newFees));
+    const updated = { ...wilayaFees, [wilaya]: fee };
+    setWilayaFees(updated);
+    localStorage.setItem("saneen_wilaya_fees", JSON.stringify(updated));
+  };
+
+  const addWilaya = (name: string, fee: number) => {
+    const updated = { ...wilayaFees, [name]: fee };
+    setWilayaFees(updated);
+    localStorage.setItem("saneen_wilaya_fees", JSON.stringify(updated));
+  };
+
+  const deleteWilaya = (name: string) => {
+    const updated = { ...wilayaFees };
+    delete updated[name];
+    setWilayaFees(updated);
+    localStorage.setItem("saneen_wilaya_fees", JSON.stringify(updated));
+  };
+
+  const renameWilaya = (oldName: string, newName: string) => {
+    if (!newName || oldName === newName) return;
+    const updated = { ...wilayaFees };
+    updated[newName] = updated[oldName];
+    delete updated[oldName];
+    setWilayaFees(updated);
+    localStorage.setItem("saneen_wilaya_fees", JSON.stringify(updated));
   };
 
   const addOrder = (order: Omit<Order, "id" | "date" | "status">) => {
@@ -145,8 +172,8 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       ...order,
       id: `DZ-${Date.now().toString().slice(-6)}`,
       date: formattedDate,
-      status: "قيد التحضير",
-    };
+      status: (order as any).status || "قيد التحضير",
+    } as Order;
     saveOrders([newOrder, ...orders]);
   };
 
@@ -169,7 +196,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <OrdersContext.Provider value={{ orders, wilayaFees, addOrder, updateStatus, updateOrder, deleteOrder, updateWilayaFee, getTotalRevenue }}>
+    <OrdersContext.Provider value={{ orders, wilayaFees, addOrder, updateStatus, updateOrder, deleteOrder, updateWilayaFee, addWilaya, deleteWilaya, renameWilaya, getTotalRevenue }}>
       {children}
     </OrdersContext.Provider>
   );
