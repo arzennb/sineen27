@@ -42,6 +42,7 @@ export default function OrdersTab({
                  <th className="py-8 px-10">الزبون</th>
                  <th className="py-8 px-10 text-center">المصدر</th>
                  <th className="py-8 px-10 text-center">المبلغ</th>
+                 <th className="py-8 px-10 text-center">الموظف</th>
                  <th className="py-8 px-10 text-center">الحالة</th>
                  <th className="py-8 px-10 text-center">إجراءات</th>
                </tr>
@@ -53,6 +54,7 @@ export default function OrdersTab({
                     <td className="py-8 px-10">{(o.customerName === "زبون محلي" || o.customerName === "بيع مباشر (المحل)" || o.customerName.includes("عميل محلي")) ? "بيع مباشر (المحل)" : o.customerName}</td>
                     <td className="py-8 px-10 text-center">{o.isOnlineOrder ? <Badge className="bg-blue-50 text-blue-600">الموقع</Badge> : <Badge className="bg-orange-50 text-orange-600">المحل</Badge>}</td>
                     <td className="py-8 px-10 text-center font-sans tracking-tight">{o.totalDZD.toLocaleString()} دج</td>
+                    <td className="py-8 px-10 text-center text-slate-400 text-xs font-bold">{o.cashierName || '---'}</td>
                     <td className="py-8 px-10 text-center">
                         {o.isOnlineOrder ? (
                           <select value={o.status} onChange={(e) => updateStatus(o.id, e.target.value as OrderStatus)} className="border rounded-xl px-4 py-2 outline-none cursor-pointer text-[11px] font-black">

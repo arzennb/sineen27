@@ -18,6 +18,7 @@ interface AuthContextType {
   addUser: (username: string, password?: string, role?: Role) => void;
   deleteUser: (id: string) => void;
   updatePassword: (oldPassword: string, newPassword: string) => void;
+  setUserPassword: (userId: string, newPassword: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -79,6 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCurrentUser(prev => prev ? { ...prev, password: newPassword } : null);
   };
 
+  const setUserPassword = (userId: string, newPassword: string) => {
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, password: newPassword } : u));
+  };
+
   return (
     <AuthContext.Provider value={{ 
       role: currentUser?.role || null, 
@@ -88,7 +93,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       addUser,
       deleteUser,
-      updatePassword
+      updatePassword,
+      setUserPassword
     }}>
       {children}
     </AuthContext.Provider>

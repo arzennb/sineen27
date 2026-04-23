@@ -157,12 +157,15 @@ interface ProductsContextType {
   addPurchase: (p: Omit<PurchaseRecord, "id" | "date">) => void;
   updatePurchase: (id: string, updates: Partial<PurchaseRecord>) => void;
   deletePurchase: (id: string) => void;
+  globalReorderLevel: number;
+  setGlobalReorderLevel: (v: number) => void;
 }
 
 const ProductsContext = createContext<ProductsContextType | undefined>(undefined);
 
 export function ProductsProvider({ children }: { children: React.ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
+  const [globalReorderLevel, setGlobalReorderLevelState] = useState(5);
   const [categorySizes, setCategorySizes] = useState<Record<string, string[]>>({
     "سجادة": ["صغير", "متوسط", "كبير", "1x1.5m", "2x3m"],
     "طقم صلاة": ["Standard", "XL"],
@@ -199,10 +202,18 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
       
       const savedPurchases = localStorage.getItem("saneen_purchases");
       if (savedPurchases) setPurchases(JSON.parse(savedPurchases));
+
+      const savedGlobalReorder = localStorage.getItem("saneen_global_reorder");
+      if (savedGlobalReorder) setGlobalReorderLevelState(parseInt(savedGlobalReorder, 10));
     } catch (e) {
       setProducts(INITIAL_PRODUCTS);
     }
   }, []);
+
+  const setGlobalReorderLevel = (v: number) => {
+    setGlobalReorderLevelState(v);
+    localStorage.setItem("saneen_global_reorder", v.toString());
+  };
 
   const saveFilters = (newCatSizes: Record<string, string[]>, newCats: string[]) => {
     localStorage.setItem("saneen_filters", JSON.stringify({ categorySizes: newCatSizes, categories: newCats }));
@@ -350,7 +361,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     <ProductsContext.Provider value={{ 
       products, categorySizes, categories, purchases,
       addProduct, updateProduct, deleteProduct, sellInStore, returnToStock, getProductPrice, updateFilter,
-      addPurchase, updatePurchase, deletePurchase
+      addPurchase, updatePurchase, deletePurchase, globalReorderLevel, setGlobalReorderLevel
     }}>
       {children}
     </ProductsContext.Provider>

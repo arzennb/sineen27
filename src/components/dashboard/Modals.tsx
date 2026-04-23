@@ -116,7 +116,20 @@ export function ProductModal({
                    </div>
                 </div>
 
-                <div className="space-y-6">
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 mb-6">
+                    <label className="text-[10px] font-black text-slate-400 mb-4 block uppercase tracking-widest text-center">تنبيه المخزون المنخفض (لهذا المنتج)</label>
+                    <div className="flex items-center justify-center gap-4">
+                       <Input 
+                         type="text" 
+                         placeholder="اتركه فارغاً لاستخدام الحد العام"
+                         value={formData.reorderLevel || ""} 
+                         onChange={e => setFormData({ ...formData, reorderLevel: parseNum(e.target.value) })} 
+                         className="h-12 w-full text-center font-sans font-black text-xs bg-white" 
+                       />
+                    </div>
+                 </div>
+
+                 <div className="space-y-6">
                    <label className="text-xs font-bold text-slate-400 mb-4 block uppercase text-center">المقاسات والأسعار</label>
                    {relevantSizes.length === 0 && <span className="text-[10px] text-red-500 w-full text-center block">لا توجد مقاسات مضافة لهذا النوع من المنتجات</span>}
                    <div className="space-y-3">

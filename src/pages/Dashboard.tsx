@@ -22,7 +22,7 @@ import { ProductModal, OrderEditModal, InvoiceModal, PurchaseModal } from "@/com
 
 export default function Dashboard() {
   // 1. ALL HOOKS MUST BE CALLED AT THE TOP (Rules of Hooks)
-  const { role, currentUser, login, addUser, users, deleteUser, updatePassword } = useAuth();
+  const { role, currentUser, login, addUser, users, deleteUser, updatePassword, setUserPassword } = useAuth();
   const productsContext = useProducts();
   const ordersContext = useOrders();
   const location = useLocation();
@@ -155,22 +155,9 @@ export default function Dashboard() {
   }
 
   // 5. DATA EXTRACTION (AFTER HOOKS & LOADING)
-  const { products, addProduct, updateProduct, deleteProduct, getProductPrice, sellInStore, returnToStock, updateFilter, categorySizes, categories, purchases, addPurchase, updatePurchase, deletePurchase } = productsContext;
+  const { products, addProduct, updateProduct, deleteProduct, getProductPrice, sellInStore, returnToStock, updateFilter, categorySizes, categories, purchases, addPurchase, updatePurchase, deletePurchase, globalReorderLevel, setGlobalReorderLevel } = productsContext;
   const { orders, addOrder, updateStatus, updateOrder, deleteOrder, wilayaFees, updateWilayaFee, addWilaya, deleteWilaya, renameWilaya } = ordersContext;
 
-  const revenueOnline = ordersContext.getTotalRevenue('online') || 0;
-  const revenueStore = ordersContext.getTotalRevenue('store') || 0;
-  const totalCOGS = orders.reduce((total, order) => {
-    return total + (order.items?.reduce((sum, item) => {
-      const product = products.find(p => p.id === item.productId || p.name === item.productName);
-      if (!product) return sum;
-      const cost = (item.size && product.sizeCostPrices && product.sizeCostPrices[item.size]) 
-        ? product.sizeCostPrices[item.size] 
-        : product.costPriceDZD;
-      return sum + (cost * item.quantity);
-    }, 0) || 0);
-  }, 0);
-  const totalNetProfit = (revenueOnline + revenueStore) - totalCOGS;
 
   const handleSaveProduct = (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,7 +165,7 @@ export default function Dashboard() {
       toast.error("يرجى ملء البيانات المطلوبة");
       return;
     }
-    const finalData = { ...formData, sizes: sizes, colors: formData.colors?.length ? formData.colors : [] };
+    const finalData = { ...formData, sizes: categorySizes[formData.category || ''] || [], colors: formData.colors?.length ? formData.colors : [] };
     
     // User cannot add new filters from here anymore, handled in filters tab.
     
@@ -220,7 +207,7 @@ export default function Dashboard() {
       <AdminNavbar />
       <main className="max-w-[1600px] mx-auto px-6 pt-24">
         {activeTab === "overview" && (
-          <OverviewTab role={role} revenueStore={revenueStore} revenueOnline={revenueOnline} totalCOGS={totalCOGS} totalNetProfit={totalNetProfit} orders={orders} products={products} setActiveTab={(t) => window.location.hash = t} />
+          <OverviewTab role={role} orders={orders} products={products} setActiveTab={(t) => { window.location.hash = t }} globalReorderLevel={globalReorderLevel} />
         )}
         {activeTab === "pos" && (
           <POSTab posSearch={posSearch} setPosSearch={setPosSearch} filteredPosProducts={products.filter(p => p.name.includes(posSearch))} flippedProductId={flippedProductId} setFlippedProductId={setFlippedProductId}
@@ -291,6 +278,13 @@ export default function Dashboard() {
               const matchesSearch = o.id.toLowerCase().includes(orderSearch.toLowerCase()) || 
                                    (o.customerPhone && o.customerPhone.includes(orderSearch)) || 
                                    (o.customerName && o.customerName?.toLowerCase().includes(orderSearch.toLowerCase()));
+              
+              // Role-based visibility: Employee sees online orders + their own store orders
+              const isEmployee = role === 'employee';
+              const canSeeOrder = !isEmployee || o.isOnlineOrder || o.cashierName === currentUser?.username;
+              
+              if (!canSeeOrder) return false;
+
               if (orderTabFilter === "online") return matchesSearch && o.isOnlineOrder;
               if (orderTabFilter === "store") return matchesSearch && !o.isOnlineOrder;
               return matchesSearch;
@@ -306,10 +300,10 @@ export default function Dashboard() {
           <FiltersTab categorySizes={categorySizes} categories={categories} newFilterValues={newFilterValues} setNewFilterValues={setNewFilterValues} updateFilter={updateFilter as any} handleAddFilter={handleAddFilter as any} />
         )}
         {activeTab === "settings" && (
-          <LogisticsTab wilayaFees={wilayaFees} renameWilaya={renameWilaya} updateWilayaFee={updateWilayaFee} deleteWilaya={deleteWilaya} newWilayaName={newWilayaName} setNewWilayaName={setNewWilayaName} newWilayaFee={newWilayaFee} setNewWilayaFee={setNewWilayaFee} addWilaya={addWilaya} updatePassword={updatePassword} />
+          <LogisticsTab role={role} wilayaFees={wilayaFees} renameWilaya={renameWilaya} updateWilayaFee={updateWilayaFee} deleteWilaya={deleteWilaya} newWilayaName={newWilayaName} setNewWilayaName={setNewWilayaName} newWilayaFee={newWilayaFee} setNewWilayaFee={setNewWilayaFee} addWilaya={addWilaya} updatePassword={updatePassword} globalReorderLevel={globalReorderLevel} setGlobalReorderLevel={setGlobalReorderLevel} />
         )}
         {activeTab === "users" && role === 'admin' && (
-          <UsersTab users={users} addUser={addUser} deleteUser={deleteUser} />
+          <UsersTab users={users} addUser={addUser} deleteUser={deleteUser} orders={orders} setUserPassword={setUserPassword} />
         )}
       </main>
       <ProductModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} editingProduct={editingProduct} formData={formData} setFormData={setFormData} onSave={handleSaveProduct} categorySizes={categorySizes} categories={categories} />
