@@ -112,6 +112,7 @@ export default function ProductDetail() {
 
 
           {/* Size */}
+          {product.sizes.some(s => !s.toLowerCase().startsWith('standard') && !s.toLowerCase().startsWith('stander')) && (
           <div>
             <h4 className="font-bold text-foreground mb-3">المقاس</h4>
             <div className="flex gap-2">
@@ -131,6 +132,7 @@ export default function ProductDetail() {
               ))}
             </div>
           </div>
+          )}
 
           {/* Color */}
           <div>

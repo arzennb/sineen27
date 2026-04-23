@@ -123,7 +123,7 @@ export function ProductModal({
                       {relevantSizes.map(s => (
                          <div key={s} className="bg-white p-4 rounded-2xl border border-slate-200">
                             <div className="flex items-center justify-between mb-3 flex-row-reverse">
-                               <span className="text-sm font-bold">مقاس {s}</span>
+                               <span className="text-sm font-bold">{s.toLowerCase().startsWith('standard') || s.toLowerCase().startsWith('stander') ? 'الكمية والسعر' : `مقاس ${s}`}</span>
                                <div className="flex items-center gap-2">
                                   <span className="text-[10px] font-bold text-slate-400">الكمية:</span>
                                   <input type="text" className="w-14 border rounded-lg px-2 py-1 font-bold font-sans text-xs text-center" value={formData.stock?.[s] || 0} onChange={e => setFormData({ ...formData, stock: { ...(formData.stock || {}), [s]: parseNum(e.target.value) } })} />
@@ -401,7 +401,7 @@ export function PurchaseModal({ isOpen, onClose, products, categorySizes, editin
                       {relevantSizes.length === 0 && <span className="text-[10px] text-red-500 w-full text-center block">لا توجد مقاسات مضافة لهذا النوع من المنتجات</span>}
                       {relevantSizes.map(s => (
                          <div key={s} className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex justify-between items-center flex-row-reverse">
-                            <span className="text-sm font-bold">مقاس {s}</span>
+                            <span className="text-sm font-bold">{s.toLowerCase().startsWith('standard') || s.toLowerCase().startsWith('stander') ? 'الكمية الواردة' : `مقاس ${s}`}</span>
                             <div className="flex items-center gap-2">
                                <span className="text-[10px] font-bold text-slate-400">الكمية:</span>
                                <input type="text" min="0" className="w-16 border rounded-lg px-2 py-1.5 font-bold font-sans text-xs text-center" value={purchaseData.stockAdded?.[s] || ""} placeholder="0" onChange={e => setPurchaseData({ ...purchaseData, stockAdded: { ...(purchaseData.stockAdded || {}), [s]: parseNum(e.target.value) } })} />

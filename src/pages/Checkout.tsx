@@ -175,7 +175,7 @@ export default function Checkout() {
               <img src={item.product.image} alt={item.product.name} className="w-16 h-20 object-cover rounded-lg" />
               <div className="flex-1">
                 <p className="font-medium text-foreground text-sm">{item.product.name}</p>
-                <p className="text-xs text-muted-foreground">{item.selectedSize} | {item.selectedColor} × {item.quantity}</p>
+                <p className="text-xs text-muted-foreground">{item.selectedSize && !item.selectedSize.toLowerCase().startsWith('standard') && !item.selectedSize.toLowerCase().startsWith('stander') ? `${item.selectedSize} | ` : ''}{item.selectedColor} × {item.quantity}</p>
               </div>
               <span className="font-bold text-accent text-sm">{(item.product.basePriceDZD * item.quantity).toLocaleString()} دج</span>
             </div>
