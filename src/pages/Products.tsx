@@ -5,16 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SlidersHorizontal, X } from "lucide-react";
 
 export default function Products() {
-  const { products, categories, fabrics } = useProducts();
-  const [category, setCategory] = useState("الكل");
-  const [fabric, setFabric] = useState("الكل");
+  const { products, categories } = useProducts();
+  const [category, setCategory] = useState(categories[0] || "");
   const [showFilters, setShowFilters] = useState(false);
 
-  // Note: Customers page uses 'fabric' from products-store which maps to 'fabricType' in dynamic system
   const filtered = products.filter((p) => {
-    const catMatch = category === "الكل" || p.category === category;
-    const fabMatch = fabric === "الكل" || p.fabricType === fabric;
-    return catMatch && fabMatch;
+    return !category || p.category === category;
   });
 
   return (
@@ -40,7 +36,7 @@ export default function Products() {
         animate={{ opacity: 1 }}
       >
         <div>
-          <span className="text-sm font-medium text-foreground mb-2 block">التصنيف</span>
+          <span className="text-sm font-medium text-foreground mb-2 block">نوع المنتج</span>
           <div className="flex flex-wrap gap-2">
             {categories.map((c) => (
               <motion.button
@@ -58,40 +54,20 @@ export default function Products() {
             ))}
           </div>
         </div>
-        <div>
-          <span className="text-sm font-medium text-foreground mb-2 block">القماش</span>
-          <div className="flex flex-wrap gap-2">
-            {fabrics.map((f) => (
-              <motion.button
-                key={f}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setFabric(f)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                  fabric === f
-                    ? "gold-gradient text-accent-foreground shadow-md"
-                    : "bg-secondary text-secondary-foreground hover:bg-accent/10"
-                }`}
-              >
-                {f}
-              </motion.button>
-            ))}
-          </div>
-        </div>
-
-        {(category !== "الكل" || fabric !== "الكل") && (
+        {category !== (categories[0] || "") && (
           <button
-            onClick={() => { setCategory("الكل"); setFabric("الكل"); }}
+            onClick={() => setCategory(categories[0] || "")}
             className="flex items-center gap-1 text-sm text-destructive hover:text-destructive/80 transition-colors"
           >
             <X className="h-3 w-3" />
-            إزالة الفلاتر
+            إزالة الفلتر
           </button>
         )}
       </motion.div>
 
       <AnimatePresence mode="wait">
         <motion.div
-          key={category + fabric}
+          key={category}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

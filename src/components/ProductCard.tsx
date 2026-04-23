@@ -20,14 +20,21 @@ export default function ProductCard({ product, index = 0 }: { product: Product; 
   const handleAddClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    // If all sizes are Standard, add directly without showing size picker
+    const isStd = (s: string) => s.toLowerCase().startsWith('standard') || s.toLowerCase().startsWith('stander');
+    if (product.sizes.length === 1 && isStd(product.sizes[0])) {
+      handleSizeSelect(e, product.sizes[0]);
+      return;
+    }
     setShowSizes(!showSizes);
   };
 
   const handleSizeSelect = (e: React.MouseEvent, size: string) => {
     e.preventDefault();
     e.stopPropagation();
+    const isStd = (s: string) => s.toLowerCase().startsWith('standard') || s.toLowerCase().startsWith('stander');
     addItem(product, size, product.colors[0]);
-    toast({ title: "تمت الإضافة ✓", description: `${product.name} (مقاس ${size}) أُضيف إلى السلة` });
+    toast({ title: "تمت الإضافة ✓", description: `${product.name}${!isStd(size) ? ` (مقاس ${size})` : ''} أُضيف إلى السلة` });
     setShowSizes(false);
   };
 
@@ -69,7 +76,7 @@ export default function ProductCard({ product, index = 0 }: { product: Product; 
                       onClick={(e) => handleSizeSelect(e, size)}
                       className="py-2 px-1 text-sm font-bold border border-border rounded-lg hover:border-accent hover:text-accent hover:bg-accent/5 transition-all"
                     >
-                      {size}
+                      {size.toLowerCase().startsWith('standard') || size.toLowerCase().startsWith('stander') ? 'إضافة' : size}
                     </button>
                   ))}
                 </div>
@@ -89,8 +96,8 @@ export default function ProductCard({ product, index = 0 }: { product: Product; 
             </div>
             {/* Sale badge */}
             {product.discountPercent > 0 && (
-              <div className="absolute top-4 left-4 gold-gradient text-accent-foreground text-sm font-bold px-4 py-1.5 rounded-full">
-                خصم {product.discountPercent}%
+              <div className="absolute top-4 left-4 bg-red-600 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg border border-white/20">
+                -{product.discountPercent}%
               </div>
             )}
           </div>
@@ -99,7 +106,7 @@ export default function ProductCard({ product, index = 0 }: { product: Product; 
               <h3 className="font-heading text-lg font-bold text-foreground leading-snug group-hover:text-accent transition-colors line-clamp-2 min-h-[3rem]">
                 {product.name}
               </h3>
-              <p className="text-sm text-muted-foreground mt-2">{product.fabricType}</p>
+              <p className="text-sm text-muted-foreground mt-2">{product.category}</p>
             </div>
             <div className="flex items-center justify-between pt-2 border-t border-border/50">
               <div className="flex items-center gap-3">

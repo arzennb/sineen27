@@ -6,6 +6,15 @@ import product4 from "@/assets/product-4.jpg";
 import product5 from "@/assets/product-5.jpg";
 import product6 from "@/assets/product-6.jpg";
 
+export interface PurchaseRecord {
+  id: string;
+  date: string;
+  productId: string;
+  productName: string;
+  costPriceDZD: number;
+  stockAdded: Record<string, number>;
+  totalCost: number;
+}
 export interface Product {
   id: string;
   name: string;
@@ -13,10 +22,7 @@ export interface Product {
   sizePrices: Record<string, number>;
   discountPercent: number;
   image: string;
-  description: string;
-  fabric: string;
-  fabricType: string;
-  cut: string;
+  description?: string;
   colors: string[];
   sizes: string[];
   category: string;
@@ -24,6 +30,8 @@ export interface Product {
   isPublished: boolean;
   stock: Record<string, number>;
   reorderLevel: number;
+  costPriceDZD: number; // سعر التكلفة للقطعة الواحدة (قاعدة)
+  sizeCostPrices?: Record<string, number>; // سعر التكلفة لكل مقاس إن كان مختلفاً
   washInstructions?: string;
 }
 
@@ -36,16 +44,14 @@ const INITIAL_PRODUCTS: Product[] = [
     discountPercent: 10,
     image: product1,
     description: "عباءة فاخرة مصممة بعناية فائقة وتطريز يدوي على الأطراف، مناسبة للأعراس واللقاءات الرسمية.",
-    fabric: "كريب إنترنت سعودي",
-    fabricType: "إنترنت",
-    cut: "كلوش",
     colors: ["أسود", "ذهبي"],
     sizes: ["52", "54", "56", "58", "60"],
-    category: "فاخر",
+    category: "عباءة",
     featured: true,
     isPublished: true,
     stock: { "52": 4, "54": 12, "56": 8, "58": 2, "60": 1 },
     reorderLevel: 3,
+    costPriceDZD: 8200,
     washInstructions: "غسيل جاف فقط للحفاظ على التطريز."
   },
   {
@@ -56,16 +62,14 @@ const INITIAL_PRODUCTS: Product[] = [
     discountPercent: 0,
     image: product2,
     description: "عباءة بشت عملية جداً بقصة كلاسيكية مريحة، مثالية للعمل والدوام اليومي. قماشها لا يحتاج للكي المستمر.",
-    fabric: "ندى ياباني",
-    fabricType: "كريب",
-    cut: "بشت",
     colors: ["أسود", "كحلي"],
     sizes: ["54", "56", "58"],
-    category: "كلاسيك",
+    category: "قميص",
     featured: true,
     isPublished: true,
-    stock: { "54": 15, "56": 20, "58": 5 },
+    stock: { "52": 10, "54": 15, "56": 12, "58": 6 },
     reorderLevel: 5,
+    costPriceDZD: 5800,
     washInstructions: "غسيل بالماء البارد بمسحوق مخصص للعباءات الداكنة."
   },
   {
@@ -76,16 +80,14 @@ const INITIAL_PRODUCTS: Product[] = [
     discountPercent: 15,
     image: product3,
     description: "فستان أنيق جداً بخامة ناعمة منسدلة. يوفر تغطية كاملة وشكلاً راقياً يبرز دون تكلف.",
-    fabric: "حرير مغسول",
-    fabricType: "حرير",
-    cut: "دبل كلوش",
     colors: ["أخضر زيتي"],
     sizes: ["50", "52", "54"],
-    category: "رسمي",
+    category: "عباءة",
     featured: false,
     isPublished: true,
     stock: { "50": 2, "52": 0, "54": 1 },
-    reorderLevel: 3
+    reorderLevel: 3,
+    costPriceDZD: 7000
   },
   {
     id: "prod-4",
@@ -95,16 +97,14 @@ const INITIAL_PRODUCTS: Product[] = [
     discountPercent: 0,
     image: product4,
     description: "إطلالة استثنائية ملائمة للحفلات بفضل قماش الكريب المدمج مع اللمعة الخفيفة. تأتي مع شيط كامل مطابق.",
-    fabric: "كريب جاكار",
-    fabricType: "كريب",
-    cut: "مفتوح",
     colors: ["أسود"],
     sizes: ["54", "56", "58"],
-    category: "فاخر",
+    category: "عباءة",
     featured: true,
     isPublished: true,
-    stock: { "54": 4, "56": 6, "58": 3 },
-    reorderLevel: 2
+    stock: { "54": 2, "56": 4, "58": 3, "60": 1 },
+    reorderLevel: 2,
+    costPriceDZD: 11000
   },
   {
     id: "prod-5",
@@ -114,16 +114,14 @@ const INITIAL_PRODUCTS: Product[] = [
     discountPercent: 0,
     image: product5,
     description: "طقم صلاة متكامل (خمار عريض وتنورة) بقماش قطني بارد جداً، عملي وسهل الارتداء فور سماع الأذان.",
-    fabric: "قطن ربيعي",
-    fabricType: "قطن",
-    cut: "أخرى",
     colors: ["وردي فاتح", "رمادي مسود"],
     sizes: ["Standard"],
-    category: "كلاسيك",
-    featured: false,
+    category: "طقم صلاة",
+    featured: true,
     isPublished: true,
-    stock: { "Standard": 45 },
-    reorderLevel: 10
+    stock: { "Standard": 25 },
+    reorderLevel: 10,
+    costPriceDZD: 2100
   },
   {
     id: "prod-6",
@@ -133,24 +131,20 @@ const INITIAL_PRODUCTS: Product[] = [
     discountPercent: 5,
     image: product6,
     description: "تصميم متميز بتزميم عصري على مستوى المعصم ليمنحك راحة تامة وعملية أثناء الحركة.",
-    fabric: "كريب كوري",
-    fabricType: "كريب",
-    cut: "فراشة",
     colors: ["بني داكن", "أسود"],
     sizes: ["52", "54", "56"],
-    category: "بشت",
+    category: "قميص",
     featured: false,
     isPublished: true,
-    stock: { "52": 5, "54": 8, "56": 12 },
-    reorderLevel: 4
+    stock: { "54": 5, "56": 8, "58": 12, "60": 4 },
+    reorderLevel: 4,
+    costPriceDZD: 7500
   }
 ];
 
 interface ProductsContextType {
   products: Product[];
-  sizes: string[];
-  cuts: string[];
-  fabrics: string[];
+  categorySizes: Record<string, string[]>;
   categories: string[];
   addProduct: (p: Omit<Product, "id">) => void;
   updateProduct: (id: string, updates: Partial<Product>) => void;
@@ -158,19 +152,33 @@ interface ProductsContextType {
   sellInStore: (productId: string, size: string) => void;
   returnToStock: (productId: string, size: string, quantity?: number) => void;
   getProductPrice: (product: Product, size: string) => number;
-  updateFilter: (type: 'sizes' | 'cuts' | 'fabrics' | 'categories', action: 'add' | 'remove', value: string) => void;
+  updateFilter: (type: 'categorySizes' | 'categories', action: 'add' | 'remove', value: string, category?: string) => void;
+  purchases: PurchaseRecord[];
+  addPurchase: (p: Omit<PurchaseRecord, "id" | "date">) => void;
+  updatePurchase: (id: string, updates: Partial<PurchaseRecord>) => void;
+  deletePurchase: (id: string) => void;
 }
 
 const ProductsContext = createContext<ProductsContextType | undefined>(undefined);
 
 export function ProductsProvider({ children }: { children: React.ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
-  const [sizes, setSizes] = useState<string[]>(["52", "54", "56", "58", "60"]);
-  const [cuts, setCuts] = useState<string[]>(["كلوش", "بشت", "فراشة", "أخرى"]);
-  const [fabrics, setFabrics] = useState<string[]>(["كريب", "حرير", "إنترنت", "كتان"]);
-  const [categories, setCategories] = useState<string[]>(["الكل", "كلاسيك", "بشت", "فراشة", "رسمي", "فاخر"]);
+  const [categorySizes, setCategorySizes] = useState<Record<string, string[]>>({
+    "سجادة": ["صغير", "متوسط", "كبير", "1x1.5m", "2x3m"],
+    "طقم صلاة": ["Standard", "XL"],
+    "عمامة": ["صغير", "كبير", "54", "56", "58"],
+    "قميص": ["S", "M", "L", "XL", "XXL"],
+    "عباءة": ["52", "54", "56", "58", "60"]
+  });
+  const [categories, setCategories] = useState<string[]>(["سجادة", "طقم صلاة", "عمامة", "قميص", "عباءة"]);
+  const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
 
   useEffect(() => {
+    /* 
+      BACKEND INTEGRATION POINT: 
+      Replace this localStorage loading logic with an async API fetch:
+      fetch('/api/products').then(res => res.json()).then(data => setProducts(data))
+    */
     try {
       const savedProducts = localStorage.getItem("saneen_products_v4");
       let parsed = savedProducts ? JSON.parse(savedProducts) : INITIAL_PRODUCTS;
@@ -179,37 +187,47 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
       const savedFilters = localStorage.getItem("saneen_filters");
       if (savedFilters) {
         const f = JSON.parse(savedFilters);
-        if (f.sizes) setSizes(f.sizes);
-        if (f.cuts) setCuts(f.cuts);
-        if (f.fabrics) setFabrics(f.fabrics);
-        if (f.categories) setCategories(f.categories);
+        if (f.categorySizes) {
+          setCategorySizes(f.categorySizes);
+        } else if (f.sizes && f.categories) {
+          const fallback: Record<string, string[]> = {};
+          f.categories.filter((c: string) => c !== "الكل").forEach((c: string) => fallback[c] = f.sizes);
+          setCategorySizes(fallback);
+        }
+        if (f.categories) setCategories(f.categories.filter((v: string) => v !== "الكل"));
       }
+      
+      const savedPurchases = localStorage.getItem("saneen_purchases");
+      if (savedPurchases) setPurchases(JSON.parse(savedPurchases));
     } catch (e) {
       setProducts(INITIAL_PRODUCTS);
     }
   }, []);
 
-  const saveFilters = (newSizes: string[], newCuts: string[], newFabrics: string[], newCats: string[]) => {
-    localStorage.setItem("saneen_filters", JSON.stringify({ sizes: newSizes, cuts: newCuts, fabrics: newFabrics, categories: newCats }));
+  const saveFilters = (newCatSizes: Record<string, string[]>, newCats: string[]) => {
+    localStorage.setItem("saneen_filters", JSON.stringify({ categorySizes: newCatSizes, categories: newCats }));
   };
 
-  const updateFilter = (type: 'sizes' | 'cuts' | 'fabrics' | 'categories', action: 'add' | 'remove', value: string) => {
-    let nSizes = [...sizes], nCuts = [...cuts], nFabrics = [...fabrics], nCats = [...categories];
-    
-    if (action === 'add') {
-      if (type === 'sizes') nSizes.push(value);
-      if (type === 'cuts') nCuts.push(value);
-      if (type === 'fabrics') nFabrics.push(value);
-      if (type === 'categories') nCats.push(value);
-    } else {
-      if (type === 'sizes') nSizes = nSizes.filter(v => v !== value);
-      if (type === 'cuts') nCuts = nCuts.filter(v => v !== value);
-      if (type === 'fabrics') nFabrics = nFabrics.filter(v => v !== value);
-      if (type === 'categories') nCats = nCats.filter(v => v !== value);
+  const updateFilter = (type: 'categorySizes' | 'categories', action: 'add' | 'remove', value: string, category?: string) => {
+    if (type === 'categorySizes' && category) {
+      let nCatSizes = { ...categorySizes };
+      let list = nCatSizes[category] ? [...nCatSizes[category]] : [];
+      
+      if (action === 'add') list.push(value);
+      else list = list.filter(v => v !== value);
+      
+      nCatSizes[category] = list;
+      setCategorySizes(nCatSizes);
+      saveFilters(nCatSizes, categories);
+    } else if (type === 'categories') {
+      let nCats = [...categories];
+      if (action === 'add') nCats.push(value);
+      else nCats = nCats.filter(v => v !== value);
+      
+      const filteredCats = nCats.filter(v => v !== "الكل");
+      setCategories(filteredCats);
+      saveFilters(categorySizes, filteredCats);
     }
-
-    setSizes(nSizes); setCuts(nCuts); setFabrics(nFabrics); setCategories(nCats);
-    saveFilters(nSizes, nCuts, nFabrics, nCats);
   };
 
   const getProductPrice = (product: Product, size: string) => {
@@ -222,6 +240,10 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
 
   const saveAndSet = (newProducts: Product[]) => {
     setProducts(newProducts);
+    /* 
+       BACKEND INTEGRATION POINT: 
+       Replace localStorage.setItem with a PUT/POST request to your API
+    */
     localStorage.setItem("saneen_products_v4", JSON.stringify(newProducts));
   };
 
@@ -252,10 +274,83 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  const savePurchases = (newPurchases: PurchaseRecord[]) => {
+     setPurchases(newPurchases);
+     localStorage.setItem("saneen_purchases", JSON.stringify(newPurchases));
+  };
+
+  const addPurchase = (data: Omit<PurchaseRecord, "id" | "date">) => {
+     const newPurchase = { ...data, id: Date.now().toString(), date: new Date().toISOString() };
+     savePurchases([newPurchase, ...purchases]);
+     
+     const newProducts = products.map(p => {
+       if (p.id === data.productId) {
+         const newStock = { ...p.stock };
+         const newSizes = [...(p.sizes || [])];
+         Object.entries(data.stockAdded).forEach(([s, q]) => {
+           if (q > 0 && !newSizes.includes(s)) newSizes.push(s);
+           newStock[s] = (newStock[s] || 0) + q;
+         });
+         return { ...p, stock: newStock, sizes: newSizes };
+       }
+       return p;
+     });
+     saveAndSet(newProducts);
+  };
+
+  const updatePurchase = (id: string, updates: Partial<PurchaseRecord>) => {
+     const oldPurchase = purchases.find(p => p.id === id);
+     if (!oldPurchase) return;
+     
+     const newPurchase = { ...oldPurchase, ...updates };
+     savePurchases(purchases.map(p => p.id === id ? newPurchase : p));
+
+     if (updates.stockAdded) {
+       const newProducts = products.map(p => {
+         if (p.id === oldPurchase.productId) {
+           const newStock = { ...p.stock };
+           const newSizes = [...(p.sizes || [])];
+           // Revert old stock
+           Object.entries(oldPurchase.stockAdded).forEach(([s, q]) => {
+             newStock[s] = Math.max(0, (newStock[s] || 0) - q);
+           });
+           // Add new stock
+           Object.entries(updates.stockAdded!).forEach(([s, q]) => {
+             if (q > 0 && !newSizes.includes(s)) newSizes.push(s);
+             newStock[s] = (newStock[s] || 0) + q;
+           });
+           return { ...p, stock: newStock, sizes: newSizes };
+         }
+         return p;
+       });
+       saveAndSet(newProducts);
+     }
+  };
+
+  const deletePurchase = (id: string) => {
+     const oldPurchase = purchases.find(p => p.id === id);
+     if (!oldPurchase) return;
+
+     savePurchases(purchases.filter(p => p.id !== id));
+
+     const newProducts = products.map(p => {
+       if (p.id === oldPurchase.productId) {
+         const newStock = { ...p.stock };
+         Object.entries(oldPurchase.stockAdded).forEach(([s, q]) => {
+           newStock[s] = Math.max(0, (newStock[s] || 0) - q);
+         });
+         return { ...p, stock: newStock };
+       }
+       return p;
+     });
+     saveAndSet(newProducts);
+  };
+
   return (
     <ProductsContext.Provider value={{ 
-      products, sizes, cuts, fabrics, categories, 
-      addProduct, updateProduct, deleteProduct, sellInStore, returnToStock, getProductPrice, updateFilter 
+      products, categorySizes, categories, purchases,
+      addProduct, updateProduct, deleteProduct, sellInStore, returnToStock, getProductPrice, updateFilter,
+      addPurchase, updatePurchase, deletePurchase
     }}>
       {children}
     </ProductsContext.Provider>

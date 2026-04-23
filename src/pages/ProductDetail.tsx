@@ -36,8 +36,11 @@ export default function ProductDetail() {
     toast({ title: "تمت الإضافة ✓", description: `${product.name} أُضيف إلى السلة` });
   };
 
-  const similar = products.filter((p) => p.id !== product.id && p.category === product.category).slice(0, 3);
-
+  const similar = products.filter((p) => 
+    p.id !== product.id && 
+    p.category === product.category &&
+    Math.abs(p.basePriceDZD - product.basePriceDZD) <= product.basePriceDZD * 0.3
+  ).slice(0, 3);
 
   return (
     <div className="container py-10">
@@ -103,8 +106,8 @@ export default function ProductDetail() {
           <p className="text-muted-foreground leading-relaxed text-lg">{product.description}</p>
 
           <div className="bg-secondary/50 rounded-xl p-4">
-            <h4 className="font-bold text-foreground mb-1">نوع القماش</h4>
-            <p className="text-muted-foreground">{product.fabricType}</p>
+            <h4 className="font-bold text-foreground mb-1">نوع المنتج</h4>
+            <p className="text-muted-foreground">{product.category}</p>
           </div>
 
 

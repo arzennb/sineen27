@@ -7,15 +7,18 @@ import { CheckCircle, Banknote } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOrders } from "@/lib/orders";
+import { communesByWilaya } from "@/lib/communes";
 
 export default function Checkout() {
   const { items, clearCart } = useCart();
   const { addOrder, wilayaFees } = useOrders();
   const [submitted, setSubmitted] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"card" | "cod">("cod");
+  const defaultWilaya = Object.keys(wilayaFees)[0] || "16 - Alger";
   const [formData, setFormData] = useState({ 
-    name: "", phone: "", email: "", address: "", 
-    wilaya: Object.keys(wilayaFees)[0] || "16 - Alger" 
+    name: "", phone: "", email: "", 
+    commune: communesByWilaya[defaultWilaya]?.[0] || "", 
+    wilaya: defaultWilaya 
   });
 
   const getSubtotal = () => items.reduce((sum, item) => {
@@ -81,10 +84,11 @@ export default function Checkout() {
       customerName: formData.name,
       customerPhone: formData.phone,
       customerWilaya: formData.wilaya,
-      customerAddress: formData.address,
+      customerAddress: formData.commune,
       deliveryType: "Yalidine",
       items: items.map((i) => ({
         productName: i.product.name,
+        productId: i.product.id,
         quantity: i.quantity,
         size: i.selectedSize,
         price: i.product.basePriceDZD, 
@@ -111,7 +115,7 @@ export default function Checkout() {
               </div>
               <div>
                 <Label>رقم الهاتف</Label>
-                <Input required type="tel" placeholder="05xxxxxxxx" className="mt-1" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
+                <Input required type="tel" placeholder="05xxxxxxxx" className="mt-1" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/[^0-9]/g, '') })} />
               </div>
               <div className="sm:col-span-2">
                 <Label>البريد الإلكتروني</Label>
@@ -122,14 +126,24 @@ export default function Checkout() {
                  <select 
                    className="w-full mt-1 h-10 px-3 rounded-md border border-input bg-background"
                    value={formData.wilaya}
-                   onChange={(e) => setFormData({ ...formData, wilaya: e.target.value })}
+                    onChange={(e) => {
+                      const newWilaya = e.target.value;
+                      setFormData({ ...formData, wilaya: newWilaya, commune: communesByWilaya[newWilaya]?.[0] || "" });
+                    }}
                  >
                     {Object.keys(wilayaFees).map(w => <option key={w} value={w}>{w}</option>)}
                  </select>
                </div>
                <div className="sm:col-span-1">
-                 <Label>العنوان</Label>
-                 <Input required placeholder="المدينة، الحي، الشارع" className="mt-1" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
+                 <Label>البلدية</Label>
+                 <select
+                   required
+                   className="w-full mt-1 h-10 px-3 rounded-md border border-input bg-background"
+                   value={formData.commune}
+                   onChange={(e) => setFormData({ ...formData, commune: e.target.value })}
+                 >
+                   {(communesByWilaya[formData.wilaya] || []).map(c => <option key={c} value={c}>{c}</option>)}
+                 </select>
                </div>
             </div>
           </motion.div>

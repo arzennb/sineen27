@@ -27,6 +27,7 @@ export let algerianWilayas = Object.keys(initialWilayaFees);
 
 export interface OrderItem {
   productName: string;
+  productId: string;
   quantity: number;
   size: string;
   price: number;
@@ -52,7 +53,7 @@ export interface Order {
 interface OrdersContextType {
   orders: Order[];
   wilayaFees: Record<string, number>;
-  addOrder: (order: Omit<Order, "id" | "date" | "status">) => void;
+  addOrder: (order: Omit<Order, "id" | "date" | "status"> & { status?: OrderStatus }) => void;
   updateStatus: (orderId: string, status: OrderStatus) => void;
   updateOrder: (orderId: string, updatedOrder: Partial<Order>) => void;
   deleteOrder: (id: string) => void;
@@ -77,14 +78,18 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
+    /* 
+       BACKEND INTEGRATION POINT:
+       Replace with fetch('/api/orders')
+    */
     try {
-      const saved = localStorage.getItem("saneen_orders_dzd");
+      const saved = localStorage.getItem("saneen_orders_dzd_v5");
       if (saved) {
         const parsed = JSON.parse(saved);
         setOrders(Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_ORDERS);
       } else {
         setOrders(INITIAL_ORDERS);
-        localStorage.setItem("saneen_orders_dzd", JSON.stringify(INITIAL_ORDERS));
+        localStorage.setItem("saneen_orders_dzd_v5", JSON.stringify(INITIAL_ORDERS));
       }
     } catch (e) {
       setOrders(INITIAL_ORDERS);
@@ -93,48 +98,62 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
 
   const INITIAL_ORDERS: Order[] = [
     {
-      id: "DZ-112233",
-      date: "10/4/2026",
-      customerName: "سارة أحمد",
-      customerPhone: "0555123456",
-      customerWilaya: "16 - Alger",
-      customerAddress: "الجزائر الوسطى",
-      deliveryType: "Yalidine",
-      items: [{ productName: "عباءة كلاسيكية فاخرة", quantity: 1, size: "54", price: 8500 }],
-      totalDZD: 8500,
-      status: "تم التسليم",
-      isOnlineOrder: true,
+      id: "DZ-112233", date: "2024-04-16", customerName: "سارة أحمد", customerPhone: "0555123456",
+      customerWilaya: "16 - Alger", customerAddress: "الجزائر الوسطى", deliveryType: "Yalidine",
+      items: [{ productName: "عباءة شيهانة بتطريز خليجي", productId: "prod-1", quantity: 1, size: "54", price: 14500 }],
+      totalDZD: 14500, deliveryFee: 400, status: "تم التسليم", isOnlineOrder: true,
     },
     {
-      id: "DZ-445566",
-      date: "11/4/2026",
-      customerName: "فاطمة الزهراء",
-      customerPhone: "0666987654",
-      customerWilaya: "31 - Oran",
-      customerAddress: "حي العقيد لطفي",
-      deliveryType: "Zr Express",
-      items: [{ productName: "عباءة بشت بلمسة عصرية", quantity: 2, size: "56", price: 12500 }],
-      totalDZD: 25000,
-      status: "قيد التحضير",
-      isOnlineOrder: true,
+      id: "DZ-445566", date: "2024-04-17", customerName: "فاطمة الزهراء", customerPhone: "0666987654",
+      customerWilaya: "31 - Oran", customerAddress: "حي العقيد لطفي", deliveryType: "Zr Express",
+      items: [{ productName: "طقم صلاة إسلامي (قطعتين)", productId: "prod-5", quantity: 2, size: "Stander", price: 4500 }],
+      totalDZD: 9000, deliveryFee: 600, status: "قيد التحضير", isOnlineOrder: true,
     },
     {
-      id: "DZ-778899",
-      date: "12/4/2026",
-      customerName: "زبون محلي",
-      customerPhone: "0000000000",
-      customerWilaya: "بيع مباشر",
-      items: [{ productName: "عباءة بشت بلمسة عصرية", quantity: 1, size: "54", price: 12500 }],
-      totalDZD: 12500,
-      status: "مكتمل",
-      isOnlineOrder: false,
+      id: "DZ-991100", date: "2024-04-17", customerName: "مريم ب.", customerPhone: "0770112233",
+      customerWilaya: "25 - Constantine", customerAddress: "المدينة الجديدة", deliveryType: "Yalidine",
+      items: [{ productName: "عباءة نور للمناسبات", productId: "prod-4", quantity: 1, size: "56", price: 18000 }],
+      totalDZD: 18000, deliveryFee: 600, status: "قيد التحضير", isOnlineOrder: true,
+    },
+    {
+      id: "POS-1001", date: "2024-04-16", customerName: "بيع مباشر (المحل)", customerPhone: "0000000000",
+      customerWilaya: "بيع مباشر", deliveryType: "محل", cashierName: "admin",
+      items: [{ productName: "عباءة لميس بقماش ندى", productId: "prod-2", quantity: 1, size: "54", price: 9800 }],
+      totalDZD: 9800, status: "مكتمل", isOnlineOrder: false,
+    },
+    {
+      id: "POS-1002", date: "2024-04-17", customerName: "بيع مباشر (المحل)", customerPhone: "0000000000",
+      customerWilaya: "بيع مباشر", deliveryType: "محل", cashierName: "user",
+      items: [{ productName: "فستان حورية بتطريز خفيف", productId: "prod-3", quantity: 1, size: "52", price: 12500 }],
+      totalDZD: 12500, status: "مكتمل", isOnlineOrder: false,
+    },
+    {
+      id: "POS-1003", date: "2024-04-17", customerName: "بيع مباشر (المحل)", customerPhone: "0000000000",
+      customerWilaya: "بيع مباشر", deliveryType: "محل", cashierName: "user",
+      items: [{ productName: "عباءة الكوثر بتفاصيل الزم", productId: "prod-6", quantity: 2, size: "58", price: 11000 }],
+      totalDZD: 22000, status: "مكتمل", isOnlineOrder: false,
+    },
+    {
+      id: "POS-1004", date: "2024-04-18", customerName: "زبون محلي", customerPhone: "0000000000",
+      customerWilaya: "بيع مباشر", deliveryType: "محل", cashierName: "admin",
+      items: [{ productName: "عباءة شيهانة بتطريز خليجي", productId: "prod-1", quantity: 1, size: "60", price: 14500 }],
+      totalDZD: 14500, status: "مكتمل", isOnlineOrder: false,
+    },
+    {
+      id: "POS-1005", date: "2024-04-18", customerName: "زبون محلي", customerPhone: "0000000000",
+      customerWilaya: "بيع مباشر", deliveryType: "محل", cashierName: "user",
+      items: [{ productName: "عباءة لميس بقماش ندى", productId: "prod-2", quantity: 1, size: "50", price: 9800 }],
+      totalDZD: 9800, status: "مكتمل", isOnlineOrder: false,
     }
   ];
 
-
   const saveOrders = (newOrders: Order[]) => {
     setOrders(newOrders);
-    localStorage.setItem("saneen_orders_dzd", JSON.stringify(newOrders));
+    /* 
+       BACKEND INTEGRATION POINT:
+       Sync with backend API
+    */
+    localStorage.setItem("saneen_orders_dzd_v5", JSON.stringify(newOrders));
   };
 
   const updateWilayaFee = (wilaya: string, fee: number) => {
@@ -165,7 +184,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("saneen_wilaya_fees", JSON.stringify(updated));
   };
 
-  const addOrder = (order: Omit<Order, "id" | "date" | "status">) => {
+  const addOrder = (order: Omit<Order, "id" | "date" | "status"> & { status?: OrderStatus }) => {
     const now = new Date();
     const formattedDate = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
     const newOrder: Order = {

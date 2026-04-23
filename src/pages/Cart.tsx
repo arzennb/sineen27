@@ -41,7 +41,7 @@ export default function Cart() {
                 <img src={item.product.image} alt={item.product.name} className="w-24 h-32 object-cover rounded-lg" />
                 <div className="flex-1 space-y-2">
                   <h3 className="font-heading font-bold text-foreground">{item.product.name}</h3>
-                  <p className="text-sm text-muted-foreground">المقاس: {item.selectedSize} | اللون: {item.selectedColor}</p>
+                  <p className="text-sm text-muted-foreground">{item.selectedSize && !item.selectedSize.toLowerCase().startsWith('standard') && !item.selectedSize.toLowerCase().startsWith('stander') ? `المقاس: ${item.selectedSize} | ` : ''}اللون: {item.selectedColor}</p>
                   <p className="font-bold text-accent text-lg">{ (item.product.basePriceDZD || 0).toLocaleString() } دج</p>
                   <div className="flex items-center gap-2">
                     <motion.button
