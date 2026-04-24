@@ -1,5 +1,5 @@
-﻿import React, { useState } from "react";
-import { Save, Trash2, Plus, User, Package, Wifi } from "lucide-react";
+import React, { useState } from "react";
+import { Save, Trash2, Plus, User, Package } from "lucide-react";
 import { Badge, Input } from "@/components/SimpleUI";
 import { toast } from "sonner";
 
@@ -16,7 +16,7 @@ interface LogisticsTabProps {
   updatePassword: (oldP: string, newP: string) => void;
   globalReorderLevel: number;
   setGlobalReorderLevel: (v: number) => void;
-  role: "admin" | "employee" | null;
+  role: string | null;
 }
 
 export default function LogisticsTab({
@@ -25,26 +25,7 @@ export default function LogisticsTab({
   globalReorderLevel, setGlobalReorderLevel, role
 }: LogisticsTabProps) {
   const [passwords, setPasswords] = useState({ old: "", new: "", confirm: "" });
-  const [apiKeys, setApiKeys] = useState(() => {
-    try {
-      const saved = localStorage.getItem("saneen_api_settings");
-      return saved ? JSON.parse(saved) : { yalidineKey: "", yalidineToken: "", zrToken: "" };
-    } catch (e) {
-      console.error("Error loading API settings:", e);
-      return { yalidineKey: "", yalidineToken: "", zrToken: "" };
-    }
-  });
-
-  const saveApiSettings = () => {
-    try {
-      localStorage.setItem("saneen_api_settings", JSON.stringify(apiKeys));
-      toast.success("تم حفظ إعدادات الربط بنجاح");
-    } catch (e) {
-      toast.error("خطأ في حفظ الإعدادات");
-    }
-  };
-
-  const isAdmin = role === "admin";
+  const isAdmin = role?.toLowerCase() === "admin";
 
   return (
     <div className="space-y-12 animate-in fade-in duration-500 text-right">
@@ -53,12 +34,15 @@ export default function LogisticsTab({
              <h1 className="text-3xl font-black mb-2 italic">إدارة الخدمات اللوجستية</h1>
              <p className="text-slate-400 font-bold text-sm">تخصيص الولايات، أسعار التوصيل، وإعدادات المتجر</p>
           </div>
-          <Badge className="bg-gold/10 text-gold border-0 h-10 px-6 rounded-xl font-black">Executive Suite 2026</Badge>
+          <div className="flex items-center gap-3">
+             <Badge className="bg-gold/10 text-gold border-0 h-10 px-6 rounded-xl font-black">Executive Suite 2026</Badge>
+             {role && <Badge className="bg-slate-100 text-slate-600 border-0 h-10 px-4 rounded-xl font-bold">{role === 'admin' ? 'مدير النظام' : 'موظف'}</Badge>}
+          </div>
        </div>
 
         {isAdmin && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-            <div className="lg:col-span-2 saneen-card overflow-hidden h-fit bg-white">
+            <div className="lg:col-span-2 saneen-card overflow-hidden h-fit bg-white shadow-sm border border-slate-100">
                <div className="p-8 border-b bg-slate-50/50 flex justify-between items-center">
                   <h3 className="font-black text-lg text-slate-900">قائمة الولايات والأسعار</h3>
                   <button className="text-xs font-black text-blue-600 hover:underline">المزامنة مع السحابة</button>
@@ -73,7 +57,7 @@ export default function LogisticsTab({
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-50">
-                        {Object.entries(wilayaFees).map(([name, fee]) => (
+                        {wilayaFees && Object.entries(wilayaFees).map(([name, fee]) => (
                            <tr key={name} className="hover:bg-slate-50 transition-all font-bold group">
                               <td className="py-6 px-10">
                                  <input 
@@ -106,7 +90,7 @@ export default function LogisticsTab({
             </div>
 
             <div className="space-y-8">
-               <div className="saneen-card p-10 border-2 border-gold/10 bg-white">
+               <div className="saneen-card p-10 border border-slate-100 bg-white shadow-sm">
                   <div className="flex items-center gap-3 mb-8 border-b pb-4">
                      <div className="h-10 w-10 bg-gold/10 rounded-xl flex items-center justify-center text-gold">
                         <Plus className="h-5 w-5" />
@@ -151,7 +135,7 @@ export default function LogisticsTab({
                   </div>
                </div>
 
-                <div className="saneen-card p-10 border-2 border-blue-50 bg-white">
+                <div className="saneen-card p-10 border border-slate-100 bg-white shadow-sm">
                    <div className="flex items-center gap-3 mb-8 border-b pb-4">
                       <div className="h-10 w-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
                          <Package className="h-5 w-5" />
@@ -180,63 +164,8 @@ export default function LogisticsTab({
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-           {isAdmin && (
-             <div className="saneen-card p-10 border-2 border-green-50 bg-white">
-                <div className="flex items-center gap-3 mb-8 border-b pb-4">
-                   <div className="h-10 w-10 bg-green-50 rounded-xl flex items-center justify-center text-green-600">
-                      <Wifi className="h-5 w-5" />
-                   </div>
-                   <h3 className="font-black text-lg text-slate-900">إعدادات الربط (API)</h3>
-                </div>
-                
-                <div className="space-y-8">
-                   <div className="space-y-4">
-                      <h4 className="font-black text-sm text-slate-700">Yalidine Express</h4>
-                      <div>
-                         <label className="text-[10px] font-black text-slate-400 block mb-2 uppercase">API Key</label>
-                         <Input 
-                            value={apiKeys.yalidineKey} 
-                            onChange={e => setApiKeys({...apiKeys, yalidineKey: e.target.value})} 
-                            className="saneen-input h-12 bg-slate-50 border-slate-200 text-slate-900" 
-                            placeholder="X-API-KEY..."
-                         />
-                      </div>
-                      <div>
-                         <label className="text-[10px] font-black text-slate-400 block mb-2 uppercase">API Token</label>
-                         <Input 
-                            value={apiKeys.yalidineToken} 
-                            onChange={e => setApiKeys({...apiKeys, yalidineToken: e.target.value})} 
-                            className="saneen-input h-12 bg-slate-50 border-slate-200 text-slate-900" 
-                            placeholder="X-API-TOKEN..."
-                         />
-                      </div>
-                   </div>
-
-                   <div className="space-y-4 border-t pt-6">
-                      <h4 className="font-black text-sm text-slate-700">Zr Express</h4>
-                      <div>
-                         <label className="text-[10px] font-black text-slate-400 block mb-2 uppercase">Auth Token</label>
-                         <Input 
-                            value={apiKeys.zrToken} 
-                            onChange={e => setApiKeys({...apiKeys, zrToken: e.target.value})} 
-                            className="saneen-input h-12 bg-slate-50 border-slate-200 text-slate-900" 
-                            placeholder="Bearer Token..."
-                         />
-                      </div>
-                   </div>
-
-                   <button 
-                     onClick={saveApiSettings}
-                     className="w-full h-14 bg-green-600 hover:bg-green-700 text-white rounded-xl font-black shadow-lg transition-all"
-                   >
-                      حفظ إعدادات الربط
-                   </button>
-                </div>
-             </div>
-           )}
-
-           <div className={`saneen-card p-10 bg-white ${!isAdmin ? "lg:col-span-2 max-w-2xl mx-auto w-full" : ""}`}>
+        <div className="flex justify-center w-full">
+           <div className={`saneen-card p-10 bg-white shadow-sm border border-slate-100 max-w-2xl w-full`}>
               <h3 className="font-black text-lg mb-8 border-b pb-4 flex items-center gap-3">
                  <div className="h-10 w-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
                     <User className="h-5 w-5" />
